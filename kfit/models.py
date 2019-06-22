@@ -1,10 +1,12 @@
 # Built-in models for peak fitting from lmfit
 
-from lmfit.models import LorentzianModel, GaussianModel, \
-    PseudoVoigtModel, LinearModel
+from lmfit.models import LorentzianModel, \
+                         GaussianModel, \
+                         PseudoVoigtModel, \
+                         LinearModel
 
 
-def gauss(N):
+def gaussx(N):
     '''
         Returns a model consisting of N gaussian curves
     '''
@@ -17,7 +19,7 @@ def gauss(N):
         )
     return model
 
-def lorentz(N):
+def lorx(N):
     '''
         Returns a model consisting of N lorentzian curves
     '''
@@ -30,7 +32,7 @@ def lorentz(N):
         )
     return model
 
-def voigt(N):
+def voigtx(N):
     '''
         Returns a model consisting of N pseudo-voigt curves
     '''
@@ -43,7 +45,7 @@ def voigt(N):
         )
     return model
 
-def line(N):
+def linex(N):
     '''
         Returns a model consisting of N lines 
     '''
