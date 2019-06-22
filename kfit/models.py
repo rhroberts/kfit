@@ -4,5 +4,54 @@ from lmfit.models import LorentzianModel, GaussianModel, \
     PseudoVoigtModel, LinearModel
 
 
-def gaussian(x, amp, center, sigma):
-    return()
+def gauss(N):
+    '''
+        Returns a model consisting of N gaussian curves
+    '''
+    # initialize model
+    model = GaussianModel(prefix='gau1_')
+    # Add N-1 gaussians
+    for i in range(N-1):
+        model += GaussianModel(
+            prefix='gau' + str(i+2) + '_'
+        )
+    return model
+
+def lorentz(N):
+    '''
+        Returns a model consisting of N lorentzian curves
+    '''
+    # initialize model
+    model = LorentzianModel(prefix='lor1_')
+    # Add N-1 lorentzians
+    for i in range(N-1):
+        model += LorentzianModel(
+            prefix='lor' + str(i+2) + '_'
+        )
+    return model
+
+def voigt(N):
+    '''
+        Returns a model consisting of N pseudo-voigt curves
+    '''
+    # initialize model
+    model = PseudoVoigtModel(prefix='voi1_')
+    # Add N-1 pseudo-voigts
+    for i in range(N-1):
+        model += PseudoVoigtModel(
+            prefix='voi' + str(i+2) + '_'
+        )
+    return model
+
+def line(N):
+    '''
+        Returns a model consisting of N lines 
+    '''
+    # initialize model
+    model = LinearModel(prefix='lin1_')
+    # Add N-1 lines
+    for i in range(N-1):
+        model += LinearModel(
+            prefix='lin' + str(i+2) + '_'
+        )
+    return model
