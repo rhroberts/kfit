@@ -10,6 +10,7 @@ setup(
             'pandas',
             'scipy',
             'numpy',
-            'matplotlib'
+            'matplotlib',
+            'lmfit'
     ]
 )
