@@ -11,6 +11,7 @@ setup(
             'scipy',
             'numpy',
             'matplotlib',
-            'lmfit'
+            'lmfit',
+            'PyQt5'
     ]
 )
