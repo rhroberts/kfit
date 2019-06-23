@@ -3,16 +3,18 @@ from kfit import models, tools
 # from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, \
     QWidget, QAction, QTabWidget, QVBoxLayout, QFileDialog, \
-    QSizePolicy
+    QSizePolicy, QTableView
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QAbstractTableModel, QVariant
 from matplotlib.backends.backend_qt5agg import FigureCanvas, \
     NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
+import pandas as pd
 import numpy as np
 from pandas_qtmodel import PandasModel
 
+plt.style.use('fivethirtyeight')
 
 class App(QMainWindow):
     
@@ -25,11 +27,20 @@ class App(QMainWindow):
         self.height = 1200
         self.setGeometry(self.left, self.top, self.width, self.height)
         self.setWindowTitle(self.title)
-        # self.setWindowTitle('kfit')
         self.setWindowIcon(QIcon('../images/K.png'))
         
-        self.table_widget = MyTableWidget(self)
-        self.setCentralWidget(self.table_widget)
+        # temporary data 
+        x = np.linspace(0, 10, 100)
+        y = models.gauss(x, 1, 3, 2) + \
+            models.gauss(x, 0.4, 5, 1) + \
+            models.gauss(x, 15, 8, 1)
+        self.data = pd.DataFrame([x,y]).T
+
+        self.table_widget = DataTable(self)
+        self.plot_widget = WidgetPlot(self)
+        self.tabs_widget = TabsWidget(self)
+        self.setCentralWidget(self.tabs_widget)
+
         
         # add import button
         import_btn = QPushButton('Import', self)
@@ -68,29 +79,22 @@ class App(QMainWindow):
         else:
             print('Import cancelled.')
         
-        # # clear canvas
-        # self.update_canvas()
-        # 
-        # # plot new data
-        # model = PandasModel(df)
-        # self.tableView.setModel(model)
+        # clear canvas
+        self.update_canvas()
+        
         
     def update_canvas(self):
-        # self._static_ax.clear()
-        # self._static_ax.figure.canvas.draw()
-        # !!!! STUCK HERE !!!!
-        self.table_widget.tab1.layout.clear()
-        # figure.canvas.draw()
+        self.plot_widget.canvas.ax.clear()
+        self.plot_widget.canvas.draw()
 
 
-class MyTableWidget(QWidget):
+class TabsWidget(QWidget):
     
     def __init__(self, parent):
-        # super(QWidget, self).__init__(parent)
-        super(MyTableWidget, self).__init__()
+        super(QWidget, self).__init__(parent)
         self.layout = QVBoxLayout(self)
         
-        # Initialize tab screen
+        # Initialize tabs screen
         self.tabs = QTabWidget()
         self.tab1 = QWidget()
         self.tab2 = QWidget()
@@ -102,20 +106,35 @@ class MyTableWidget(QWidget):
         
         # Graph View tab
         self.tab1.layout = QVBoxLayout(self)
-        self.tab1.layout.addWidget(WidgetPlot(self))
+        self.tab1.layout.addWidget(self.parent().plot_widget)
         self.tab1.setLayout(self.tab1.layout)
+
+        # Table View tab
+        self.tab2.layout = QVBoxLayout(self)
+        self.tab2.layout.addWidget(self.parent().table_widget)
+        self.tab2.setLayout(self.tab2.layout)
 
         # Add tabs to widget
         self.layout.addWidget(self.tabs)
         self.setLayout(self.layout)
         self.show()
         
+class DataTable(QWidget):
+    def __init__(self, *args, **kwargs):
+        QWidget.__init__(self, *args, **kwargs)
+        df = pd.DataFrame(data=self.parent().data)
+        self.setLayout(QVBoxLayout(self))
+        self.table = QTableView(self)
+        self.table.setMinimumSize(2000, 1075)
+        self.model = PandasModel(df)
+        self.table.setModel(self.model)
+        self.table.resizeColumnsToContents()
 
 class WidgetPlot(QWidget):
     def __init__(self, *args, **kwargs):
         QWidget.__init__(self, *args, **kwargs)
-        self.setLayout(QVBoxLayout())
-        self.canvas = PlotCanvas(self, width=9, height=6)
+        self.setLayout(QVBoxLayout(self))
+        self.canvas = PlotCanvas(self)
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.layout().addWidget(self.canvas)
         self.layout().addWidget(self.toolbar)
@@ -127,20 +146,20 @@ class PlotCanvas(FigureCanvas):
         self.setParent(parent)
         FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
+        self.ax = self.figure.add_subplot(111)
         self.plot()
 
     def plot(self):
-        plt.style.use('fivethirtyeight')
         x = np.linspace(0, 10, 100)
         y = models.gauss(x, 1, 3, 2) + \
             models.gauss(x, 0.4, 5, 1) + \
             models.gauss(x, 15, 8, 1)
-        ax = self.figure.add_subplot(111)
-        ax.scatter(
+        self.ax.scatter(
             x, y, s=150, c='None', edgecolors='black',
             linewidth=2
         )
         self.draw()
+
 
 def run():
     app = QApplication(sys.argv)
