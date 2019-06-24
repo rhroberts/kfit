@@ -1,16 +1,18 @@
 import sys
-from kfit import models, tools
-from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, \
-                            QPushButton, QTableView, QVBoxLayout, \
-                            QTabWidget, QFileDialog
-from PyQt5.QtCore import pyqtSlot, QCoreApplication
-from PyQt5.QtGui import QIcon
 import pandas as pd
+import numpy as np
 from pandas_qtmodel import PandasModel
-from matplotlib.backends.backend_qt5agg import FigureCanvas, \
-    NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
+from kfit import models, tools
+from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import pyqtSlot, QCoreApplication, Qt
+from matplotlib.backends.backend_qt5agg import FigureCanvas, \
+    NavigationToolbar2QT as NavigationToolbar
+from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, \
+    QPushButton, QTableView, QVBoxLayout, QTabWidget, \
+    QFileDialog, QSizePolicy, QInputDialog, QLineEdit, \
+    QLabel
 
 
 class App(QMainWindow):
@@ -22,9 +24,17 @@ class App(QMainWindow):
         self.width = 2000
         self.height = 1200
         self.file_name = ''
+        self.xcol_idx = 0
+        self.ycol_idx = 1
 
         # temporary data 
-        self.data = pd.read_csv('../scripts/example_data.csv')
+        # self.data = pd.read_csv('../scripts/example_data.csv')
+        x = np.linspace(0,10,500)
+        y = models.gauss(x, 0.5, 4, 0.4) + \
+                models.gauss(x, 0.8, 5, 0.2) + \
+                models.gauss(x, 0.4, 6, 0.3)
+        self.data = pd.DataFrame([x,y]).T
+        self.data.columns = ['x', 'y']
 
         self.initUI()
 
@@ -38,12 +48,14 @@ class App(QMainWindow):
         self.setCentralWidget(self.tabs)
         self.tab1 = QWidget(self)
         self.tab2 = QTableView(self)
-        self.tabs.addTab(self.tab1,"Graph")
-        self.tabs.addTab(self.tab2,"Data")
+        self.tab3 = QWidget(self)
+        self.tabs.addTab(self.tab1,'Graph')
+        self.tabs.addTab(self.tab2,'Data')
+        self.tabs.addTab(self.tab3,'Model')
 
         # Tab 1 - Graph
         plt.style.use('fivethirtyeight')
-        self.tab1.figure = Figure(figsize=(9,6))
+        self.tab1.figure = Figure(figsize=(9,6), dpi=110)
         self.tab1.canvas = FigureCanvas(self.tab1.figure)
         self.tab1.toolbar =  NavigationToolbar(self.tab1.canvas, self)
         layout = QVBoxLayout()
@@ -58,52 +70,118 @@ class App(QMainWindow):
         self.tab2.resizeColumnsToContents()
 
         # quit button
-        quit_btn = QPushButton("Quit", self)
-        quit_btn.clicked.connect(self.close_app)
-        quit_btn.resize(100,55)
-        quit_btn.move(1900, 0)
+        self.quitButton = QPushButton('Quit', self)
+        self.quitButton.clicked.connect(self.close_app)
+        self.quitButton.resize(100,55)
+        self.quitButton.move(1900, 0)
 
         # import button
-        import_btn = QPushButton("Import", self)
-        import_btn.clicked.connect(self.get_data)
-        import_btn.resize(100, 55)
-        import_btn.move(1800, 0)
+        self.importButton = QPushButton('Import', self)
+        self.importButton.clicked.connect(self.get_data)
+        self.importButton.resize(100, 55)
+        self.importButton.move(1800, 0)
+
+        # fit button
+        self.fitButton = QPushButton('Fit', self)
+        self.fitButton.clicked.connect(self.fit)
+        self.fitButton.resize(100, 55)
+        self.fitButton.move(1700, 0)
+        self.fitButton.setStyleSheet('background-color: lightgreen')
+        
+        # get column header for x
+        self.xLabel = QLabel(self)
+        self.xLabel.setText('ColumnIndex(X):')
+        self.xLabel.resize(300, 45)
+        self.xLabel.move(500, 5)
+        self.xLineEntry = QLineEdit(self)
+        self.xLineEntry.resize(75, 45)
+        self.xLineEntry.move(725, 5)
+        self.xLineEntry.setPlaceholderText('0')
+        self.xLineEntry.setAlignment(Qt.AlignCenter)
+        self.xSet = QPushButton('Set', self)
+        self.xSet.resize(50, 45)
+        self.xSet.move(800, 5)
+        self.xSet.clicked.connect(self.xset_click)
+
+        # get column header for y
+        self.yLabel = QLabel(self)
+        self.yLabel.setText('ColumnIndex(Y):')
+        self.yLabel.resize(300, 45)
+        self.yLabel.move(900, 5)
+        self.yLineEntry = QLineEdit(self)
+        self.yLineEntry.resize(75, 45)
+        self.yLineEntry.move(1125, 5)
+        self.yLineEntry.setPlaceholderText('1')
+        self.yLineEntry.setAlignment(Qt.AlignCenter)
+        self.ySet = QPushButton('Set', self)
+        self.ySet.resize(50, 45)
+        self.ySet.move(1200, 5)
+        self.ySet.clicked.connect(self.yset_click)
 
         self.show()
 
     @pyqtSlot()
+    def fit(self):
+        pass
+
+    @pyqtSlot()
+    def xset_click(self):
+        try:
+            idx = int(self.xLineEntry.text())
+        except:
+            print("Can't convert index to integer!")
+            return
+        self.xcol_idx = idx
+        self.plot()
+        print('ColumnIndex(X) = ' + str(idx))
+
+    @pyqtSlot()
+    def yset_click(self):
+        try:
+            idx = int(self.yLineEntry.text())
+        except:
+            print("Can't convert index to integer!")
+            return
+        self.ycol_idx = idx
+        self.plot()
+        print('ColumnIndex(Y) = ' + str(idx))
+
+    @pyqtSlot()
     def close_app(self):
-        print('Quitting application...')
+        print('\nQuitting application...')
         sys.exit()
 
     @pyqtSlot()
     def get_data(self):
-        print('\nImporting .csv file...\n')
         self.file_name,_ = QFileDialog.getOpenFileName(
             self, 'Open File', '', 'CSV files (*.csv)'
         )
         if self.file_name != '':
+            print('\nImporting .csv file:')
             print(self.file_name)
+            print('...')
             df = tools.to_df(self.file_name)
             self.data = df
-            print('Done.\n')
         else:
             print('Import cancelled.')
+            return
 
         self.model = PandasModel(self.data)
         self.tab2.setModel(self.model)
         self.tab2.resizeColumnsToContents()
         self.plot()
+        print('\nDone.\n')
 
     def plot(self):
         self.tab1.figure.clear()
         ax = self.tab1.figure.add_subplot(111, label=self.file_name)
         ax.scatter(
-            self.data.iloc[:,0], self.data.iloc[:,1],
-            s=250, c='None', edgecolors='purple', linewidth=3
+            self.data.iloc[:,self.xcol_idx],
+            self.data.iloc[:,self.ycol_idx],
+            s=200, c='None', edgecolors='purple', linewidth=3
         )
-        ax.set_xlabel(self.data.columns[0])
-        ax.set_ylabel(self.data.columns[1])
+        ax.set_xlabel(self.data.columns[self.xcol_idx], labelpad=10)
+        ax.set_ylabel(self.data.columns[self.ycol_idx], labelpad=15)
         self.tab1.canvas.draw()
 
 def run():
