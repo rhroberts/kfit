@@ -1,4 +1,5 @@
 import sys
+import time
 import pandas as pd
 import numpy as np
 from matplotlib.figure import Figure
@@ -10,6 +11,9 @@ from PyQt5.QtWidgets import *
 from matplotlib.backends.backend_qt5agg import FigureCanvas, \
     NavigationToolbar2QT as NavigationToolbar
 
+idx_error_msg = "Error: Can't convert index to integer!"
+msg_length = 2000
+
 class App(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -17,10 +21,14 @@ class App(QMainWindow):
         self.left = 500
         self.top = 200
         self.width = 2000
-        self.height = 1200
+        self.height = 1400
         self.file_name = ''
         self.xcol_idx = 0
         self.ycol_idx = 1
+        self.ngau = 0
+        self.nlor = 0
+        self.nvoi = 0
+        self.nlin = 0
 
         # temporary data 
         # self.data = pd.read_csv('../scripts/example_data.csv')
@@ -37,6 +45,14 @@ class App(QMainWindow):
         self.setGeometry(self.left, self.top, self.width, self.height)
         self.setWindowTitle(self.title)
         self.setWindowIcon(QIcon('../images/K.png'))
+
+        # set up the status bar
+        self.statusBar = QStatusBar()
+        self.setStatusBar(self.statusBar)
+        self.statusBar.setStyleSheet(
+            'background-color: white; color: purple'
+        )
+        self.statusBar.showMessage('Welcome to kfit!', 3000)
         
         # Create the Main Tab Widget
         self.tabs = QTabWidget(self)
@@ -46,23 +62,87 @@ class App(QMainWindow):
         self.tab3 = QWidget(self)
         self.tabs.addTab(self.tab1,'Graph')
         self.tabs.addTab(self.tab2,'Data')
-        self.tabs.addTab(self.tab3,'Model')
+        self.tabs.addTab(self.tab3,'Output')
 
-        # Tab 1 - Graph
+        # Tab 1 - Graph / Model
         plt.style.use('fivethirtyeight')
         self.tab1.figure = Figure(figsize=(9,6), dpi=110)
         self.tab1.canvas = FigureCanvas(self.tab1.figure)
         self.tab1.toolbar =  NavigationToolbar(self.tab1.canvas, self)
-        layout = QVBoxLayout()
-        layout.addWidget(self.tab1.canvas)
-        layout.addWidget(self.tab1.toolbar)
-        self.tab1.setLayout(layout)
+        graph_layout = QGridLayout()
+        graph_layout.addWidget(self.tab1.canvas, 0, 0)
+        graph_layout.addWidget(self.tab1.toolbar, 1, 0)
+        model_layout = QHBoxLayout()
+        ## specify number of gaussian curves
+        gauss_label = QLabel(self)
+        gauss_label.setText('Gaussians:')
+        gauss_label.setAlignment(Qt.AlignVCenter)
+        self.gauss_entry = QLineEdit(self)
+        self.gauss_entry.setAlignment(Qt.AlignCenter)
+        self.gauss_entry.setPlaceholderText('0')
+        self.gauss_entry.returnPressed.connect(self.init_model)
+        gauss_btn = QPushButton('Set')
+        gauss_btn.clicked.connect(self.init_model)
+        model_layout.addSpacing(200)
+        model_layout.addWidget(gauss_label)
+        model_layout.addWidget(self.gauss_entry)
+        model_layout.addWidget(gauss_btn)
+        model_layout.addSpacing(50)
+        ## specify number of lorentzian curves
+        lorentz_label = QLabel(self)
+        lorentz_label.setText('Lorentzians:')
+        lorentz_label.setAlignment(Qt.AlignVCenter)
+        self.lorentz_entry = QLineEdit(self)
+        self.lorentz_entry.setAlignment(Qt.AlignCenter)
+        self.lorentz_entry.setPlaceholderText('0')
+        self.lorentz_entry.returnPressed.connect(self.init_model)
+        lorentz_btn = QPushButton('Set')
+        lorentz_btn.clicked.connect(self.init_model)
+        model_layout.addWidget(lorentz_label)
+        model_layout.addWidget(self.lorentz_entry)
+        model_layout.addWidget(lorentz_btn)
+        model_layout.addSpacing(50)
+        ## specify number of pseudo-voigt curves
+        voigt_label = QLabel(self)
+        voigt_label.setText('Pseudo-Voigts:')
+        voigt_label.setAlignment(Qt.AlignVCenter)
+        self.voigt_entry = QLineEdit(self)
+        self.voigt_entry.setAlignment(Qt.AlignCenter)
+        self.voigt_entry.setPlaceholderText('0')
+        self.voigt_entry.returnPressed.connect(self.init_model)
+        voigt_btn = QPushButton('Set')
+        voigt_btn.clicked.connect(self.init_model)
+        model_layout.addWidget(voigt_label)
+        model_layout.addWidget(self.voigt_entry)
+        model_layout.addWidget(voigt_btn)
+        model_layout.addSpacing(50)
+        ## specify number of linear curves
+        line_label = QLabel(self)
+        line_label.setText('Lines:')
+        line_label.setAlignment(Qt.AlignVCenter)
+        self.line_entry = QLineEdit(self)
+        self.line_entry.setAlignment(Qt.AlignCenter)
+        self.line_entry.setPlaceholderText('0')
+        self.line_entry.returnPressed.connect(self.init_model)
+        line_btn = QPushButton('Set')
+        line_btn.clicked.connect(self.init_model)
+        model_layout.addWidget(line_label)
+        model_layout.addWidget(self.line_entry)
+        model_layout.addWidget(line_btn)
+        model_layout.addSpacing(200)
+
+        graph_layout.addLayout(model_layout, 2, 0)
+        self.tab1.setLayout(graph_layout)
         self.plot()
 
         # Tab 2 - Data Table
         self.model = PandasModel(self.data)
         self.tab2.setModel(self.model)
         self.tab2.resizeColumnsToContents()
+
+        # Tab 3 - Output
+        tab3_layout = QGridLayout()
+        self.tab3.setLayout(tab3_layout)
 
         # quit button
         self.quitButton = QPushButton('Quit', self)
@@ -93,6 +173,7 @@ class App(QMainWindow):
         self.xLineEntry.move(725, 5)
         self.xLineEntry.setPlaceholderText('0')
         self.xLineEntry.setAlignment(Qt.AlignCenter)
+        self.xLineEntry.returnPressed.connect(self.xset_click)
         self.xSet = QPushButton('Set', self)
         self.xSet.resize(50, 45)
         self.xSet.move(800, 5)
@@ -108,6 +189,7 @@ class App(QMainWindow):
         self.yLineEntry.move(1125, 5)
         self.yLineEntry.setPlaceholderText('1')
         self.yLineEntry.setAlignment(Qt.AlignCenter)
+        self.yLineEntry.returnPressed.connect(self.yset_click)
         self.ySet = QPushButton('Set', self)
         self.ySet.resize(50, 45)
         self.ySet.move(1200, 5)
@@ -116,56 +198,94 @@ class App(QMainWindow):
         self.show()
 
     @pyqtSlot()
+    def init_model(self):
+        try:
+            if self.gauss_entry.text() != '':
+                self.ngau = int(self.gauss_entry.text())
+            if self.lorentz_entry.text() != '':
+                self.nlor = int(self.lorentz_entry.text())
+            if self.voigt_entry.text() != '':
+                self.nvoi = int(self.voigt_entry.text())
+            if self.line_entry.text() != '':
+                self.nlin = int(self.line_entry.text())
+        except:
+            self.statusBar.showMessage(idx_error_msg, msg_length)
+            return
+
+        print(str([self.ngau, self.nlor, self.nvoi, self.nlin]))
+
+    @pyqtSlot()
     def fit(self):
-        pass
+        model = models.gauss_mod(self.ngau) + \
+                models.lor_mod(self.nlor) + \
+                models.voigt_mod(self.nvoi) + \
+                models.line_mod(self.nlin)
+        result = model.fit(
+            data=self.data.iloc[:,self.ycol_idx],
+            x=self.data.iloc[:,self.xcol_idx]
+        )
+        print(result.fit_report())
 
     @pyqtSlot()
     def xset_click(self):
         try:
             idx = int(self.xLineEntry.text())
         except:
-            print("Can't convert index to integer!")
+            self.statusBar.showMessage(idx_error_msg, msg_length)
             return
         self.xcol_idx = idx
         self.plot()
-        print('ColumnIndex(X) = ' + str(idx))
+        self.statusBar.showMessage(
+            'ColumnIndex(X) = ' + str(idx), msg_length
+        )
 
     @pyqtSlot()
     def yset_click(self):
         try:
             idx = int(self.yLineEntry.text())
         except:
-            print("Can't convert index to integer!")
+            self.statusBar.showMessage(idx_error_msg, msg_length)
             return
         self.ycol_idx = idx
         self.plot()
-        print('ColumnIndex(Y) = ' + str(idx))
+        self.statusBar.showMessage(
+            'ColumnIndex(Y) = ' + str(idx), msg_length
+        )
 
     @pyqtSlot()
     def close_app(self):
-        print('\nQuitting application...')
         sys.exit()
 
     @pyqtSlot()
     def get_data(self):
+        # reset column indices
+        # !!! need to clear the boxes as well...
+        self.xcol_idx = 0
+        self.ycol_idx = 1
+        # open file dialog
         self.file_name,_ = QFileDialog.getOpenFileName(
             self, 'Open File', '', 'CSV files (*.csv)'
         )
         if self.file_name != '':
-            print('\nImporting .csv file:')
-            print(self.file_name)
-            print('...')
+            # this message isn't showing up...
+            self.statusBar.showMessage(
+                'Importing .csv file: ' + self.file_name, msg_length
+            )
             df = tools.to_df(self.file_name)
             self.data = df
         else:
-            print('Import cancelled.')
+            self.statusBar.showMessage(
+                'Import cancelled.', msg_length
+            )
             return
 
         self.model = PandasModel(self.data)
         self.tab2.setModel(self.model)
         self.tab2.resizeColumnsToContents()
         self.plot()
-        print('\nDone.\n')
+        self.statusBar.showMessage(
+            'Import finished.', msg_length
+        )
 
     def plot(self):
         self.tab1.figure.clear()
@@ -207,7 +327,7 @@ class PandasModel(QAbstractTableModel):
         if not index.isValid():
             return QVariant()
 
-        return QVariant(str(self._df.ix[index.row(), index.column()]))
+        return QVariant(str(self._df.iloc[index.row(), index.column()]))
 
     def setData(self, index, value, role):
         row = self._df.index[index.row()]
@@ -235,6 +355,8 @@ class PandasModel(QAbstractTableModel):
         self._df.sort_values(colname, ascending= order == Qt.AscendingOrder, inplace=True)
         self._df.reset_index(inplace=True, drop=True)
         self.layoutChanged.emit()
+
+
 def run():
     app = QApplication(sys.argv)
     GUI = App()
