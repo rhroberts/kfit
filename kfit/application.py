@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 from kfit import models, tools
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import *
@@ -28,10 +29,11 @@ class App(QMainWindow):
         self.ngau = 0
         self.nlor = 0
         self.nvoi = 0
-        self.nlin = 0
+        self.nlin = 1
+        self.model = None
+        self.result = None
 
         # temporary data 
-        # self.data = pd.read_csv('../scripts/example_data.csv')
         x = np.linspace(0,10,500)
         y = models.gauss(x, 0.5, 4, 0.4) + \
                 models.gauss(x, 0.8, 5, 0.2) + \
@@ -52,7 +54,7 @@ class App(QMainWindow):
         self.statusBar.setStyleSheet(
             'background-color: white; color: purple'
         )
-        self.statusBar.showMessage('Welcome to kfit!', 3000)
+        self.statusBar.showMessage('Welcome to kfit!', msg_length)
         
         # Create the Main Tab Widget
         self.tabs = QTabWidget(self)
@@ -80,13 +82,10 @@ class App(QMainWindow):
         self.gauss_entry = QLineEdit(self)
         self.gauss_entry.setAlignment(Qt.AlignCenter)
         self.gauss_entry.setPlaceholderText('0')
-        self.gauss_entry.returnPressed.connect(self.init_model)
-        gauss_btn = QPushButton('Set')
-        gauss_btn.clicked.connect(self.init_model)
+        self.gauss_entry.returnPressed.connect(self.fit)
         model_layout.addSpacing(200)
         model_layout.addWidget(gauss_label)
         model_layout.addWidget(self.gauss_entry)
-        model_layout.addWidget(gauss_btn)
         model_layout.addSpacing(50)
         ## specify number of lorentzian curves
         lorentz_label = QLabel(self)
@@ -95,12 +94,9 @@ class App(QMainWindow):
         self.lorentz_entry = QLineEdit(self)
         self.lorentz_entry.setAlignment(Qt.AlignCenter)
         self.lorentz_entry.setPlaceholderText('0')
-        self.lorentz_entry.returnPressed.connect(self.init_model)
-        lorentz_btn = QPushButton('Set')
-        lorentz_btn.clicked.connect(self.init_model)
+        self.lorentz_entry.returnPressed.connect(self.fit)
         model_layout.addWidget(lorentz_label)
         model_layout.addWidget(self.lorentz_entry)
-        model_layout.addWidget(lorentz_btn)
         model_layout.addSpacing(50)
         ## specify number of pseudo-voigt curves
         voigt_label = QLabel(self)
@@ -109,12 +105,9 @@ class App(QMainWindow):
         self.voigt_entry = QLineEdit(self)
         self.voigt_entry.setAlignment(Qt.AlignCenter)
         self.voigt_entry.setPlaceholderText('0')
-        self.voigt_entry.returnPressed.connect(self.init_model)
-        voigt_btn = QPushButton('Set')
-        voigt_btn.clicked.connect(self.init_model)
+        self.voigt_entry.returnPressed.connect(self.fit)
         model_layout.addWidget(voigt_label)
         model_layout.addWidget(self.voigt_entry)
-        model_layout.addWidget(voigt_btn)
         model_layout.addSpacing(50)
         ## specify number of linear curves
         line_label = QLabel(self)
@@ -122,13 +115,10 @@ class App(QMainWindow):
         line_label.setAlignment(Qt.AlignVCenter)
         self.line_entry = QLineEdit(self)
         self.line_entry.setAlignment(Qt.AlignCenter)
-        self.line_entry.setPlaceholderText('0')
-        self.line_entry.returnPressed.connect(self.init_model)
-        line_btn = QPushButton('Set')
-        line_btn.clicked.connect(self.init_model)
+        self.line_entry.setPlaceholderText('1')
+        self.line_entry.returnPressed.connect(self.fit)
         model_layout.addWidget(line_label)
         model_layout.addWidget(self.line_entry)
-        model_layout.addWidget(line_btn)
         model_layout.addSpacing(200)
 
         graph_layout.addLayout(model_layout, 2, 0)
@@ -136,8 +126,8 @@ class App(QMainWindow):
         self.plot()
 
         # Tab 2 - Data Table
-        self.model = PandasModel(self.data)
-        self.tab2.setModel(self.model)
+        self.table_model = PandasModel(self.data)
+        self.tab2.setModel(self.table_model)
         self.tab2.resizeColumnsToContents()
 
         # Tab 3 - Output
@@ -157,11 +147,12 @@ class App(QMainWindow):
         self.importButton.move(1800, 0)
 
         # fit button
-        self.fitButton = QPushButton('Fit', self)
+        self.fitButton = QPushButton('', self)
+        self.fitButton.setIcon(QIcon.fromTheme('dialog-apply'))
         self.fitButton.clicked.connect(self.fit)
         self.fitButton.resize(100, 55)
         self.fitButton.move(1700, 0)
-        self.fitButton.setStyleSheet('background-color: lightgreen')
+        self.fitButton.setStyleSheet('font-style: bold')
         
         # get column header for x
         self.xLabel = QLabel(self)
@@ -199,6 +190,7 @@ class App(QMainWindow):
 
     @pyqtSlot()
     def init_model(self):
+        self.model = models.line_mod(self.nlin)
         try:
             if self.gauss_entry.text() != '':
                 self.ngau = int(self.gauss_entry.text())
@@ -212,19 +204,28 @@ class App(QMainWindow):
             self.statusBar.showMessage(idx_error_msg, msg_length)
             return
 
-        print(str([self.ngau, self.nlor, self.nvoi, self.nlin]))
+        self.statusBar.showMessage(
+                "Model updated: " + \
+                str([self.ngau, self.nlor, self.nvoi, self.nlin]),
+            msg_length
+        )
 
     @pyqtSlot()
     def fit(self):
-        model = models.gauss_mod(self.ngau) + \
-                models.lor_mod(self.nlor) + \
-                models.voigt_mod(self.nvoi) + \
-                models.line_mod(self.nlin)
-        result = model.fit(
+        self.init_model()
+        if self.ngau != 0:
+            self.model += models.gauss_mod(self.ngau) 
+        if self.nlor != 0:
+            self.model += models.lor_mod(self.nlor)
+        if self.nvoi != 0:
+            self.model += models.voigt_mod(self.nvoi)
+
+        self.result = self.model.fit(
             data=self.data.iloc[:,self.ycol_idx],
             x=self.data.iloc[:,self.xcol_idx]
         )
-        print(result.fit_report())
+        print(self.result.fit_report())
+        self.plot()
 
     @pyqtSlot()
     def xset_click(self):
@@ -279,8 +280,8 @@ class App(QMainWindow):
             )
             return
 
-        self.model = PandasModel(self.data)
-        self.tab2.setModel(self.model)
+        self.table_model = PandasModel(self.data)
+        self.tab2.setModel(self.table_model)
         self.tab2.resizeColumnsToContents()
         self.plot()
         self.statusBar.showMessage(
@@ -288,13 +289,25 @@ class App(QMainWindow):
         )
 
     def plot(self):
+        x = self.data.iloc[:,self.xcol_idx].values
+        y = self.data.iloc[:,self.ycol_idx].values
         self.tab1.figure.clear()
         ax = self.tab1.figure.add_subplot(111, label=self.file_name)
         ax.scatter(
-            self.data.iloc[:,self.xcol_idx],
-            self.data.iloc[:,self.ycol_idx],
-            s=200, c='None', edgecolors='purple', linewidth=3
+            x, y, s=200, c='None',
+            edgecolors='purple', linewidth=3
         )
+        if self.result != None:
+            yfit = self.result.best_fit.values
+            ax.plot(x, yfit, c='r')
+            cmap = cm.get_cmap('Dark2')
+            components = self.result.eval_components()
+            for i, comp in enumerate(components):
+                ax.plot(
+                    x, components[comp],
+                    linewidth=2, linestyle='--',
+                    c=cmap(i/len(components))
+                )
         ax.set_xlabel(self.data.columns[self.xcol_idx], labelpad=10)
         ax.set_ylabel(self.data.columns[self.ycol_idx], labelpad=15)
         self.tab1.canvas.draw()
