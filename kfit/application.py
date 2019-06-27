@@ -6,6 +6,7 @@ from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from kfit import models, tools
+from lmfit.model import Parameters
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
@@ -19,7 +20,7 @@ class App(QMainWindow):
     def __init__(self):
         super().__init__()
         self.title = 'kfit'
-        self.left = 500
+        self.left = 1000
         self.top = 200
         self.width = 2000
         self.height = 1400
@@ -32,12 +33,14 @@ class App(QMainWindow):
         self.nlin = 1
         self.model = None
         self.result = None
+        # empty Parameters to hold parameter guesses/constraints
+        self.params = Parameters()
 
         # temporary data 
         x = np.linspace(0,10,500)
         y = models.gauss(x, 0.5, 4, 0.4) + \
                 models.gauss(x, 0.8, 5, 0.2) + \
-                models.gauss(x, 0.4, 6, 0.3)
+                models.gauss(x, 0.4, 6, 0.3) + 0.2
         self.data = pd.DataFrame([x,y]).T
         self.data.columns = ['x', 'y']
 
@@ -51,20 +54,81 @@ class App(QMainWindow):
         # set up the status bar
         self.statusBar = QStatusBar()
         self.setStatusBar(self.statusBar)
-        self.statusBar.setStyleSheet(
-            'background-color: white; color: purple'
-        )
         self.statusBar.showMessage('Welcome to kfit!', msg_length)
+        self.statusBar.setStyleSheet('background-color: white')
         
-        # Create the Main Tab Widget
+        # Create the Main Widget and Layout
+        self.main_layout = QVBoxLayout()
+        self.main_widget = QWidget()
+        self.setCentralWidget(self.main_widget)
+
+        # create "top bar" widget
+        self.topbar_layout = QHBoxLayout()
+        self.topbar_widget = QWidget()
+        # import button
+        self.importButton = QPushButton('', self)
+        self.importButton.setIcon(QIcon.fromTheme('up'))
+        self.importButton.setIconSize(QSize(50,50))
+        self.importButton.clicked.connect(self.get_data)
+        # fit button
+        self.fitButton = QPushButton('', self)
+        self.fitButton.setIcon(QIcon.fromTheme('dialog-apply'))
+        self.fitButton.setIconSize(QSize(50,50))
+        self.fitButton.clicked.connect(self.fit)
+        self.fitButton.setStyleSheet('font-style: bold')
+        # quit button
+        self.quitButton = QPushButton('', self)
+        self.quitButton.setIcon(QIcon.fromTheme('gtk-cancel'))
+        self.quitButton.setIconSize(QSize(50,50))
+        self.quitButton.clicked.connect(self.close_app)
+        # get column header for x
+        self.xLabel = QLabel(self)
+        self.xLabel.setText('ColumnIndex(X):')
+        self.xLineEntry = QLineEdit(self)
+        self.xLineEntry.setPlaceholderText('0')
+        self.xLineEntry.setAlignment(Qt.AlignCenter)
+        self.xLineEntry.returnPressed.connect(self.xset_click)
+        # get column header for y
+        self.yLabel = QLabel(self)
+        self.yLabel.setText('ColumnIndex(Y):')
+        self.yLineEntry = QLineEdit(self)
+        self.yLineEntry.setPlaceholderText('1')
+        self.yLineEntry.setAlignment(Qt.AlignCenter)
+        self.yLineEntry.returnPressed.connect(self.yset_click)
+        # add topbar widgets to layout
+        self.topbar_layout.addSpacing(500)
+        self.topbar_layout.addWidget(self.xLabel)
+        self.topbar_layout.addWidget(self.xLineEntry)
+        self.topbar_layout.addSpacing(50)
+        self.topbar_layout.addWidget(self.yLabel)
+        self.topbar_layout.addWidget(self.yLineEntry)
+        self.topbar_layout.addSpacing(250)
+        self.topbar_layout.addWidget(self.fitButton)
+        self.topbar_layout.addWidget(self.importButton)
+        self.topbar_layout.addWidget(self.quitButton)
+        self.topbar_widget.setLayout(self.topbar_layout)
+
+        # create tabs widget
         self.tabs = QTabWidget(self)
-        self.setCentralWidget(self.tabs)
         self.tab1 = QWidget(self)
         self.tab2 = QTableView(self)
         self.tab3 = QWidget(self)
         self.tabs.addTab(self.tab1,'Graph')
         self.tabs.addTab(self.tab2,'Data')
         self.tabs.addTab(self.tab3,'Output')
+
+        # create params widget
+        self.params_widget = QWidget() 
+        self.params_layout = QFormLayout()
+        self.params_widget.setLayout(self.params_layout)
+
+        # add everything to layout
+        self.main_layout.setSpacing(0)
+        self.main_layout.setContentsMargins(0,0,0,0)
+        self.main_layout.addWidget(self.topbar_widget)
+        self.main_layout.addWidget(self.tabs)
+        self.main_layout.addWidget(self.params_widget)
+        self.main_widget.setLayout(self.main_layout)
 
         # Tab 1 - Graph / Model
         plt.style.use('fivethirtyeight')
@@ -134,63 +198,9 @@ class App(QMainWindow):
         tab3_layout = QGridLayout()
         self.tab3.setLayout(tab3_layout)
 
-        # quit button
-        self.quitButton = QPushButton('Quit', self)
-        self.quitButton.clicked.connect(self.close_app)
-        self.quitButton.resize(100,55)
-        self.quitButton.move(1900, 0)
-
-        # import button
-        self.importButton = QPushButton('Import', self)
-        self.importButton.clicked.connect(self.get_data)
-        self.importButton.resize(100, 55)
-        self.importButton.move(1800, 0)
-
-        # fit button
-        self.fitButton = QPushButton('', self)
-        self.fitButton.setIcon(QIcon.fromTheme('dialog-apply'))
-        self.fitButton.clicked.connect(self.fit)
-        self.fitButton.resize(100, 55)
-        self.fitButton.move(1700, 0)
-        self.fitButton.setStyleSheet('font-style: bold')
-        
-        # get column header for x
-        self.xLabel = QLabel(self)
-        self.xLabel.setText('ColumnIndex(X):')
-        self.xLabel.resize(300, 45)
-        self.xLabel.move(500, 5)
-        self.xLineEntry = QLineEdit(self)
-        self.xLineEntry.resize(75, 45)
-        self.xLineEntry.move(725, 5)
-        self.xLineEntry.setPlaceholderText('0')
-        self.xLineEntry.setAlignment(Qt.AlignCenter)
-        self.xLineEntry.returnPressed.connect(self.xset_click)
-        self.xSet = QPushButton('Set', self)
-        self.xSet.resize(50, 45)
-        self.xSet.move(800, 5)
-        self.xSet.clicked.connect(self.xset_click)
-
-        # get column header for y
-        self.yLabel = QLabel(self)
-        self.yLabel.setText('ColumnIndex(Y):')
-        self.yLabel.resize(300, 45)
-        self.yLabel.move(900, 5)
-        self.yLineEntry = QLineEdit(self)
-        self.yLineEntry.resize(75, 45)
-        self.yLineEntry.move(1125, 5)
-        self.yLineEntry.setPlaceholderText('1')
-        self.yLineEntry.setAlignment(Qt.AlignCenter)
-        self.yLineEntry.returnPressed.connect(self.yset_click)
-        self.ySet = QPushButton('Set', self)
-        self.ySet.resize(50, 45)
-        self.ySet.move(1200, 5)
-        self.ySet.clicked.connect(self.yset_click)
-
         self.show()
 
-    @pyqtSlot()
     def init_model(self):
-        self.model = models.line_mod(self.nlin)
         try:
             if self.gauss_entry.text() != '':
                 self.ngau = int(self.gauss_entry.text())
@@ -204,13 +214,102 @@ class App(QMainWindow):
             self.statusBar.showMessage(idx_error_msg, msg_length)
             return
 
+        if self.nlin > 1:
+            self.model = models.line_mod(self.nlin)
+        else:
+            self.model = models.line_mod(1)
+
         self.statusBar.showMessage(
                 "Model updated: " + \
                 str([self.ngau, self.nlor, self.nvoi, self.nlin]),
             msg_length
         )
 
-    @pyqtSlot()
+    def guess_params(self):
+        self.params = Parameters()
+        self.clear_layout(self.params_layout)
+        for comp in self.model.components:
+            if comp.prefix.find('gau') != -1 or \
+                    comp.prefix.find('lor') != -1 or \
+                    comp.prefix.find('voi') != -1:
+
+                c = comp.prefix + 'center'
+                cval = self.data.iloc[:,self.xcol_idx].mean()
+                cmin = self.data.iloc[:,self.xcol_idx].min()
+                cmax = self.data.iloc[:,self.xcol_idx].max()
+                self.params.add(c, cval, True, cmin, cmax)
+
+                # add widgets (gau/lor/voi center)
+                label = QLabel()
+                entry = QLineEdit()
+                label.setText(c)
+                entry.setPlaceholderText(str(round(cval,5)))
+                self.params_layout.addRow(label, entry)
+                entry.returnPressed.connect(self.test_function)
+
+                a = comp.prefix + 'amplitude'
+                aval = self.data.iloc[:,self.ycol_idx].mean()
+                amin = self.data.iloc[:,self.ycol_idx].min()
+                amax = self.data.iloc[:,self.ycol_idx].max()
+                self.params.add(a, aval, True, amin, amax)            
+                # add widgets (gau/lor/voi amplitude)
+                label = QLabel()
+                entry = QLineEdit()
+                label.setText(a)
+                entry.setPlaceholderText(str(round(aval,5)))
+                self.params_layout.addRow(label, entry)
+                entry.returnPressed.connect(self.test_function)
+
+                s = comp.prefix + 'sigma'
+                sval = self.data.iloc[:,self.xcol_idx].std()
+                self.params.add(s, sval, True)            
+                # add widgets (gau/lor/voi sigma)
+                label = QLabel()
+                entry = QLineEdit()
+                label.setText(s)
+                entry.setPlaceholderText(str(round(sval,5)))
+                self.params_layout.addRow(label, entry)
+                entry.returnPressed.connect(self.test_function)
+
+                f = comp.prefix + 'fraction'
+                fval = 0.5
+                if comp.prefix.find('voi') != -1:
+                    self.params.add(f, fval, True)
+                    # add widgets (voi fraction)
+                    label = QLabel()
+                    entry = QLineEdit()
+                    label.setText(f)
+                    entry.setPlaceholderText(str(round(fval,5)))
+                    self.params_layout.addRow(label, entry)
+                    entry.returnPressed.connect(self.test_function)
+            else:
+                slope = comp.prefix + 'slope'
+                slopeval = self.data.iloc[:,self.ycol_idx].mean()
+                self.params.add(slope, slopeval, True)
+                intc = comp.prefix + 'intercept'
+                intcval = self.data.iloc[:,self.ycol_idx].mean()
+                self.params.add(intc, intcval, True)
+                # add widgets (line slope)
+                label = QLabel()
+                entry = QLineEdit()
+                label.setText(slope)
+                entry.setPlaceholderText(str(round(slopeval,5)))
+                self.params_layout.addRow(label, entry)
+                entry.returnPressed.connect(self.test_function)
+                # add widgets (line intercept)
+                label = QLabel()
+                entry = QLineEdit()
+                label.setText(intc)
+                entry.setPlaceholderText(str(round(intcval,5)))
+                self.params_layout.addRow(label, entry)
+                entry.returnPressed.connect(
+                    self.test_function,
+                )
+
+    def test_function(self):
+        print()
+
+
     def fit(self):
         self.init_model()
         if self.ngau != 0:
@@ -219,15 +318,18 @@ class App(QMainWindow):
             self.model += models.lor_mod(self.nlor)
         if self.nvoi != 0:
             self.model += models.voigt_mod(self.nvoi)
+        
+        # adding this guessing function doesn't seem to help...
+        self.guess_params()
 
         self.result = self.model.fit(
             data=self.data.iloc[:,self.ycol_idx],
+            params=self.params,
             x=self.data.iloc[:,self.xcol_idx]
         )
         print(self.result.fit_report())
         self.plot()
 
-    @pyqtSlot()
     def xset_click(self):
         try:
             idx = int(self.xLineEntry.text())
@@ -236,11 +338,11 @@ class App(QMainWindow):
             return
         self.xcol_idx = idx
         self.plot()
+        self.fit()
         self.statusBar.showMessage(
             'ColumnIndex(X) = ' + str(idx), msg_length
         )
 
-    @pyqtSlot()
     def yset_click(self):
         try:
             idx = int(self.yLineEntry.text())
@@ -249,15 +351,14 @@ class App(QMainWindow):
             return
         self.ycol_idx = idx
         self.plot()
+        self.fit()
         self.statusBar.showMessage(
             'ColumnIndex(Y) = ' + str(idx), msg_length
         )
 
-    @pyqtSlot()
     def close_app(self):
         sys.exit()
 
-    @pyqtSlot()
     def get_data(self):
         # reset column indices
         # !!! need to clear the boxes as well...
@@ -288,6 +389,7 @@ class App(QMainWindow):
             'Import finished.', msg_length
         )
 
+
     def plot(self):
         x = self.data.iloc[:,self.xcol_idx].values
         y = self.data.iloc[:,self.ycol_idx].values
@@ -311,6 +413,18 @@ class App(QMainWindow):
         ax.set_xlabel(self.data.columns[self.xcol_idx], labelpad=10)
         ax.set_ylabel(self.data.columns[self.ycol_idx], labelpad=15)
         self.tab1.canvas.draw()
+
+    def clear_layout(self, layout):
+        if layout:
+            while layout.count():
+                item = layout.takeAt(0)
+                widget = item.widget()
+                if widget:
+                    widget.deleteLater()
+                else :
+                    self.clear_layout(item.layout())
+                layout.removeItem(item)
+
 
 class PandasModel(QAbstractTableModel): 
     def __init__(self, df = pd.DataFrame(), parent=None): 

@@ -1,0 +1,40 @@
+<h1 id="development-notes-and-to-dos">Development Notes and TO-DOs</h1>
+<h2 id="notes">Notes</h2>
+<h2 id="to-dos">TO-DOs</h2>
+<h3 id="smaller-tasks">Smaller Tasks</h3>
+<ul>
+<li>Make the param_layout have four columns – one for each peak types
+<ul>
+<li>The layout itself should have a fixed height
+<ul>
+<li>i.e. not eat up space from the plot widget when there are a bunch of params</li>
+<li>Something should fill this space before the first fit</li>
+</ul></li>
+<li>And each column should be individually scrollable</li>
+</ul></li>
+<li>Add lineEntry widgets for min() and max() parmeters as well…</li>
+<li><del>Round off the placeholder text in entry widgets</del>
+<ul>
+<li>done, but should really do something more robust in cases of values on the order of <span class="math inline">10<sup> − 6</sup></span> or smaller</li>
+</ul></li>
+<li><del>Am I using pyqtSlot() correctly?</del>
+<ul>
+<li>https://stackoverflow.com/questions/39210500/how-do-i-connect-a-pyqt5-slot-to-a-signal-function-in-a-class</li>
+<li>seems like I can probably delete them all…
+<ul>
+<li>yup</li>
+</ul></li>
+</ul></li>
+</ul>
+<h3 id="larger-tasks">Larger Tasks</h3>
+<ul>
+<li>Think more carefully about when/why things <em>actually</em> need to be class attributes of App()</li>
+<li><strong>How will we get user entry from the param widgets if they are dynamic?</strong>
+<ul>
+<li>Status:
+<ul>
+<li>I can connect them up to slots, and all entry widgets can produce a signal</li>
+<li>Need to direct those to the param values..</li>
+</ul></li>
+</ul></li>
+</ul>
