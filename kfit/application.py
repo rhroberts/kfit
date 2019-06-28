@@ -119,24 +119,27 @@ class App(QMainWindow):
 
         # create params widget
         self.params_widget = QWidget() 
-        self.params_layout = QFormLayout()
-        # self.params_layout = QHBoxLayout()
-        # self.gau_layout = QVBoxLayout()
-        # self.lor_layout = QVBoxLayout()
-        # self.voi_layout = QVBoxLayout()
-        # self.lin_layout = QVBoxLayout()
-        # self.gau_sublayout = QHBoxLayout()
-        # self.lor_sublayout = QHBoxLayout()
-        # self.voi_sublayout = QHBoxLayout()
-        # self.lin_sublayout = QHBoxLayout()
-        # self.gau_layout.addLayout(self.gau_sublayout)
-        # self.lor_layout.addLayout(self.gau_sublayout)
-        # self.voi_layout.addLayout(self.gau_sublayout)
-        # self.lin_layout.addLayout(self.gau_sublayout)
-        # self.params_layout.addLayout(self.gau_layout)
-        # self.params_layout.addLayout(self.lor_layout)
-        # self.params_layout.addLayout(self.voi_layout)
-        # self.params_layout.addLayout(self.lin_layout)
+        self.params_layout = QGridLayout()
+        self.gau_widget = QWidget()
+        self.gau_layout = QVBoxLayout()
+        self.gau_widget.setLayout(self.gau_layout)
+        self.gau_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.lor_widget = QWidget()
+        self.lor_layout = QVBoxLayout()
+        self.lor_widget.setLayout(self.lor_layout)
+        self.lor_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.voi_widget = QWidget()
+        self.voi_layout = QVBoxLayout()
+        self.voi_widget.setLayout(self.voi_layout)
+        self.voi_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.lin_widget = QWidget()
+        self.lin_layout = QVBoxLayout()
+        self.lin_widget.setLayout(self.lin_layout)
+        self.lin_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.params_layout.addWidget(self.gau_widget, 0, 1)
+        self.params_layout.addWidget(self.lor_widget, 0, 2)
+        self.params_layout.addWidget(self.voi_widget, 0, 3)
+        self.params_layout.addWidget(self.lin_widget, 0, 4)
         self.params_widget.setLayout(self.params_layout)
 
         # add everything to layout
@@ -157,53 +160,105 @@ class App(QMainWindow):
         graph_layout.addWidget(self.tab1.canvas, 0, 0)
         graph_layout.addWidget(self.tab1.toolbar, 1, 0)
 
-        ## Model
-        model_layout = QHBoxLayout()
+        ## The "Set Model" layout
+        model_layout = QGridLayout()
+        widget_setgau = QWidget()
+        layout_setgau = QHBoxLayout()
+        layout_setgau.setSizeConstraint(QLayout.SetFixedSize)
+        widget_setgau.setLayout(layout_setgau)
+        widget_setlor = QWidget()
+        layout_setlor = QHBoxLayout()
+        layout_setlor.setSizeConstraint(QLayout.SetFixedSize)
+        widget_setlor.setLayout(layout_setlor)
+        widget_setvoi = QWidget()
+        layout_setvoi = QHBoxLayout()
+        layout_setvoi.setSizeConstraint(QLayout.SetFixedSize)
+        widget_setvoi.setLayout(layout_setvoi)
+        widget_setlin = QWidget()
+        layout_setlin = QHBoxLayout()
+        layout_setlin.setSizeConstraint(QLayout.SetFixedSize)
+        widget_setlin.setLayout(layout_setlin)
+        model_layout.addWidget(widget_setgau, 0, 0)
+        model_layout.addWidget(widget_setlor, 0, 1)
+        model_layout.addWidget(widget_setvoi, 0, 2)
+        model_layout.addWidget(widget_setlin, 0, 3)
+
         ## specify number of gaussian curves
         gauss_label = QLabel(self)
-        gauss_label.setText('Gaussians:')
+        gauss_label.setText('Gaussians')
         gauss_label.setAlignment(Qt.AlignVCenter)
-        self.gauss_entry = QLineEdit(self)
-        self.gauss_entry.setAlignment(Qt.AlignCenter)
-        self.gauss_entry.setPlaceholderText('0')
-        self.gauss_entry.returnPressed.connect(self.fit)
-        model_layout.addSpacing(200)
-        model_layout.addWidget(gauss_label)
-        model_layout.addWidget(self.gauss_entry)
-        model_layout.addSpacing(50)
+        gauss_button_add = QPushButton('', self)
+        gauss_button_add.setIcon(QIcon.fromTheme('list-add'))
+        gauss_button_add.clicked.connect(
+            lambda: self.increment('gau', True)
+        )
+        gauss_button_add.clicked.connect(self.init_params)
+        gauss_button_sub = QPushButton('', self)
+        gauss_button_sub.setIcon(QIcon.fromTheme('list-remove'))
+        gauss_button_sub.clicked.connect(
+            lambda: self.increment('gau', False)
+        )
+        gauss_button_sub.clicked.connect(self.init_params)
+        layout_setgau.addWidget(gauss_label)
+        layout_setgau.addWidget(gauss_button_add)
+        layout_setgau.addWidget(gauss_button_sub)
         ## specify number of lorentzian curves
         lorentz_label = QLabel(self)
-        lorentz_label.setText('Lorentzians:')
+        lorentz_label.setText('Lorentzians')
         lorentz_label.setAlignment(Qt.AlignVCenter)
-        self.lorentz_entry = QLineEdit(self)
-        self.lorentz_entry.setAlignment(Qt.AlignCenter)
-        self.lorentz_entry.setPlaceholderText('0')
-        self.lorentz_entry.returnPressed.connect(self.fit)
-        model_layout.addWidget(lorentz_label)
-        model_layout.addWidget(self.lorentz_entry)
-        model_layout.addSpacing(50)
-        ## specify number of pseudo-voigt curves
+        lorentz_button_add = QPushButton('', self)
+        lorentz_button_add.setIcon(QIcon.fromTheme('list-add'))
+        lorentz_button_add.clicked.connect(
+            lambda: self.increment('lor', True)
+        )
+        lorentz_button_add.clicked.connect(self.init_params)
+        lorentz_button_sub = QPushButton('', self)
+        lorentz_button_sub.setIcon(QIcon.fromTheme('list-remove'))
+        lorentz_button_sub.clicked.connect(
+            lambda: self.increment('lor', False)
+        )
+        lorentz_button_sub.clicked.connect(self.init_params)
+        layout_setlor.addWidget(lorentz_label)
+        layout_setlor.addWidget(lorentz_button_add)
+        layout_setlor.addWidget(lorentz_button_sub)
+        ## specify number of voigt curves
         voigt_label = QLabel(self)
-        voigt_label.setText('Pseudo-Voigts:')
+        voigt_label.setText('Pseudo-Voigts')
         voigt_label.setAlignment(Qt.AlignVCenter)
-        self.voigt_entry = QLineEdit(self)
-        self.voigt_entry.setAlignment(Qt.AlignCenter)
-        self.voigt_entry.setPlaceholderText('0')
-        self.voigt_entry.returnPressed.connect(self.fit)
-        model_layout.addWidget(voigt_label)
-        model_layout.addWidget(self.voigt_entry)
-        model_layout.addSpacing(50)
-        ## specify number of linear curves
+        voigt_button_add = QPushButton('', self)
+        voigt_button_add.setIcon(QIcon.fromTheme('list-add'))
+        voigt_button_add.clicked.connect(
+            lambda: self.increment('voi', True)
+        )
+        voigt_button_add.clicked.connect(self.init_params)
+        voigt_button_sub = QPushButton('', self)
+        voigt_button_sub.setIcon(QIcon.fromTheme('list-remove'))
+        voigt_button_sub.clicked.connect(
+            lambda: self.increment('voi', False)
+        )
+        voigt_button_sub.clicked.connect(self.init_params)
+        layout_setvoi.addWidget(voigt_label)
+        layout_setvoi.addWidget(voigt_button_add)
+        layout_setvoi.addWidget(voigt_button_sub)
+        ## specify number of lines
         line_label = QLabel(self)
         line_label.setText('Lines:')
         line_label.setAlignment(Qt.AlignVCenter)
-        self.line_entry = QLineEdit(self)
-        self.line_entry.setAlignment(Qt.AlignCenter)
-        self.line_entry.setPlaceholderText('1')
-        self.line_entry.returnPressed.connect(self.fit)
-        model_layout.addWidget(line_label)
-        model_layout.addWidget(self.line_entry)
-        model_layout.addSpacing(200)
+        line_button_add = QPushButton('', self)
+        line_button_add.setIcon(QIcon.fromTheme('list-add'))
+        line_button_add.clicked.connect(
+            lambda: self.increment('lin', True)
+        )
+        line_button_add.clicked.connect(self.init_params)
+        line_button_sub = QPushButton('', self)
+        line_button_sub.setIcon(QIcon.fromTheme('list-remove'))
+        line_button_sub.clicked.connect(
+            lambda: self.increment('lin', False)
+        )
+        line_button_sub.clicked.connect(self.init_params)
+        layout_setlin.addWidget(line_label)
+        layout_setlin.addWidget(line_button_add)
+        layout_setlin.addWidget(line_button_sub)
 
         graph_layout.addLayout(model_layout, 2, 0)
         self.tab1.setLayout(graph_layout)
@@ -218,37 +273,36 @@ class App(QMainWindow):
         tab3_layout = QGridLayout()
         self.tab3.setLayout(tab3_layout)
 
+        self.init_params()
         self.show()
 
     def init_model(self):
-        try:
-            if self.gauss_entry.text() != '':
-                self.ngau = int(self.gauss_entry.text())
-            if self.lorentz_entry.text() != '':
-                self.nlor = int(self.lorentz_entry.text())
-            if self.voigt_entry.text() != '':
-                self.nvoi = int(self.voigt_entry.text())
-            if self.line_entry.text() != '':
-                self.nlin = int(self.line_entry.text())
-        except:
-            self.statusBar.showMessage(idx_error_msg, msg_length)
-            return
-
-        if self.nlin > 1:
-            self.model = models.line_mod(self.nlin)
-        else:
-            self.model = models.line_mod(1)
-
+        # increment() ensures nlin >= 1
+        self.model = models.line_mod(self.nlin)
+        if self.ngau != 0:
+            self.model += models.gauss_mod(self.ngau) 
+        if self.nlor != 0:
+            self.model += models.lor_mod(self.nlor)
+        if self.nvoi != 0:
+            self.model += models.voigt_mod(self.nvoi)
         self.statusBar.showMessage(
                 "Model updated: " + \
                 str([self.ngau, self.nlor, self.nvoi, self.nlin]),
             msg_length
         )
 
-    def guess_params(self):
+    def init_params(self):
+        self.init_model()
         self.params = Parameters()
-        self.clear_layout(self.params_layout)
+        for layout in [
+            self.gau_layout, self.lor_layout,
+            self.voi_layout, self.lin_layout
+        ]:
+            self.clear_layout(layout)
         self.usr_entry = {}
+        labels = {}
+        # !!! right now it's impossible to run this w/o fitting first
+        # I'd like to change this behavior...
         for comp in self.model.components:
             if comp.prefix.find('gau') != -1 or \
                     comp.prefix.find('lor') != -1 or \
@@ -260,84 +314,141 @@ class App(QMainWindow):
                 cmax = self.data.iloc[:,self.xcol_idx].max()
                 self.params.add(c, cval, True, cmin, cmax)
 
-                # add widgets (gau/lor/voi center)
-                center_label = QLabel()
-                self.usr_entry[c] = QLineEdit()
-                center_label.setText(c)
-                self.usr_entry[c].setPlaceholderText(str(round(cval,5)))
-                self.params_layout.addRow(center_label, self.usr_entry[c])
-                # note: connect() expects a callable func, hence the lambda
-                self.usr_entry[c].returnPressed.connect(
-                    lambda: self.update_usr_params(self.usr_entry)
-                )
+                labels[c] = QLabel()
+                self.usr_entry[c+'_val'] = QLineEdit()
+                self.usr_entry[c+'_min'] = QLineEdit()
+                self.usr_entry[c+'_max'] = QLineEdit()
+                labels[c].setText(c)
+                self.usr_entry[c+'_val'].setPlaceholderText(str(round(cval,5)))
+                self.usr_entry[c+'_min'].setPlaceholderText(str(round(cmin,5)))
+                self.usr_entry[c+'_max'].setPlaceholderText(str(round(cmax,5)))
 
                 a = comp.prefix + 'amplitude'
                 aval = self.data.iloc[:,self.ycol_idx].mean()
                 amin = self.data.iloc[:,self.ycol_idx].min()
                 amax = self.data.iloc[:,self.ycol_idx].max()
                 self.params.add(a, aval, True, amin, amax)
-                # add widgets (gau/lor/voi amplitude)
-                amp_label = QLabel()
-                self.usr_entry[a] = QLineEdit()
-                amp_label.setText(a)
-                self.usr_entry[a].setPlaceholderText(str(round(aval,5)))
-                self.params_layout.addRow(amp_label, self.usr_entry[a])
-                self.usr_entry[a].returnPressed.connect(
-                    lambda: self.update_usr_params(self.usr_entry)
-                )
+                labels[a] = QLabel()
+                self.usr_entry[a+'_val'] = QLineEdit()
+                self.usr_entry[a+'_min'] = QLineEdit()
+                self.usr_entry[a+'_max'] = QLineEdit()
+                labels[a].setText(a)
+                self.usr_entry[a+'_val'].setPlaceholderText(str(round(aval,5)))
+                self.usr_entry[a+'_min'].setPlaceholderText(str(round(amin,5)))
+                self.usr_entry[a+'_max'].setPlaceholderText(str(round(amax,5)))
 
                 s = comp.prefix + 'sigma'
                 sval = self.data.iloc[:,self.xcol_idx].std()
+                smin = 0
+                smax = None
                 self.params.add(s, sval, True)            
-                # add widgets (gau/lor/voi sigma)
-                sig_label = QLabel()
-                self.usr_entry[s] = QLineEdit()
-                sig_label.setText(s)
-                self.usr_entry[s].setPlaceholderText(str(round(sval,5)))
-                self.params_layout.addRow(sig_label, self.usr_entry[s])
-                self.usr_entry[s].returnPressed.connect(
-                    lambda: self.update_usr_params(self.usr_entry)
-                )
+                labels[s] = QLabel()
+                self.usr_entry[s+'_val'] = QLineEdit()
+                self.usr_entry[s+'_min'] = QLineEdit()
+                self.usr_entry[s+'_max'] = QLineEdit()
+                labels[s].setText(s)
+                self.usr_entry[s+'_val'].setPlaceholderText(str(round(sval,5)))
+                self.usr_entry[s+'_min'].setPlaceholderText(str(round(smin,5)))
+                self.usr_entry[s+'_max'].setPlaceholderText('')
 
+                # set up connections
+                # note: connect() expects a callable func, hence the lambda
+                for item in ['_val', '_min', '_max']:
+                    self.usr_entry[c+item].returnPressed.connect(
+                        lambda: self.update_usr_params(self.usr_entry)
+                    )
+                    self.usr_entry[a+item].returnPressed.connect(
+                        lambda: self.update_usr_params(self.usr_entry)
+                    )
+                    self.usr_entry[s+item].returnPressed.connect(
+                        lambda: self.update_usr_params(self.usr_entry)
+                    )
+
+                # add widgets to respective layouts
+                if comp.prefix.find('gau') != -1:
+                    for p in [c, a, s]:
+                        sublayout = QHBoxLayout()
+                        sublayout.addWidget(labels[p])
+                        sublayout.addWidget(self.usr_entry[p+'_val'])
+                        sublayout.addWidget(self.usr_entry[p+'_min'])
+                        sublayout.addWidget(self.usr_entry[p+'_max'])
+                        self.gau_layout.addLayout(sublayout)
+                if comp.prefix.find('lor') != -1:
+                    for p in [c, a, s]:
+                        sublayout = QHBoxLayout()
+                        sublayout.addWidget(labels[p])
+                        sublayout.addWidget(self.usr_entry[p+'_val'])
+                        sublayout.addWidget(self.usr_entry[p+'_min'])
+                        sublayout.addWidget(self.usr_entry[p+'_max'])
+                        self.lor_layout.addLayout(sublayout)
+                # voigt needs an additional param (fraction)
                 if comp.prefix.find('voi') != -1:
                     f = comp.prefix + 'fraction'
                     fval = 0.5
+                    fmin = 0
+                    fmax = 1
                     self.params.add(f, fval, True)
-                    # add widgets (voi fraction)
-                    frac_label = QLabel()
-                    self.usr_entry[f] = QLineEdit()
-                    frac_label.setText(f)
-                    self.usr_entry[f].setPlaceholderText(str(round(fval,5)))
-                    self.params_layout.addRow(frac_label, self.usr_entry[f])
-                    frac_entry.returnPressed.connect(
-                        lambda: self.update_usr_params(self.usr_entry)
-                    )
+                    labels[f] = QLabel()
+                    self.usr_entry[f+'_val'] = QLineEdit()
+                    self.usr_entry[f+'_min'] = QLineEdit()
+                    self.usr_entry[f+'_max'] = QLineEdit()
+                    labels[f].setText(f)
+                    self.usr_entry[f+'_val'].setPlaceholderText(str(round(fval,5)))
+                    self.usr_entry[f+'_min'].setPlaceholderText(str(round(fmin,5)))
+                    self.usr_entry[f+'_max'].setPlaceholderText(str(round(fmax,5)))
+
+                    # set up connections
+                    for item in ['_val', '_min', '_max']:
+                        self.usr_entry[f+item].returnPressed.connect(
+                            lambda: self.update_usr_params(self.usr_entry)
+                        )
+                    # add voigt widgets
+                    for p in [c, a, s, f]:
+                        sublayout = QHBoxLayout()
+                        sublayout.addWidget(labels[p])
+                        sublayout.addWidget(self.usr_entry[p+'_val'])
+                        sublayout.addWidget(self.usr_entry[p+'_min'])
+                        sublayout.addWidget(self.usr_entry[p+'_max'])
+                        self.voi_layout.addLayout(sublayout)
             else:
+                # line model
                 slope = comp.prefix + 'slope'
                 slopeval = self.data.iloc[:,self.ycol_idx].mean()
                 self.params.add(slope, slopeval, True)
-                # add widgets (line slope)
-                slope_label = QLabel()
+                labels[slope] = QLabel()
                 self.usr_entry[slope] = QLineEdit()
-                slope_label.setText(slope)
+                labels[slope].setText(slope)
                 self.usr_entry[slope].setPlaceholderText(str(round(slopeval,5)))
-                self.params_layout.addRow(slope_label, self.usr_entry[slope])
                 self.usr_entry[slope].returnPressed.connect(
                     lambda: self.update_usr_params(self.usr_entry)
                 )
-
                 intc = comp.prefix + 'intercept'
                 intcval = self.data.iloc[:,self.ycol_idx].mean()
                 self.params.add(intc, intcval, True)
-                # add widgets (line intercept)
-                intc_label = QLabel()
+                labels[intc] = QLabel()
                 self.usr_entry[intc] = QLineEdit()
-                intc_label.setText(intc)
+                labels[intc].setText(intc)
                 self.usr_entry[intc].setPlaceholderText(str(round(intcval,5)))
-                self.params_layout.addRow(intc_label, self.usr_entry[intc])
                 self.usr_entry[intc].returnPressed.connect(
                     lambda: self.update_usr_params(self.usr_entry)
                 )
+                # add line widgets
+                for p in [slope, intc]:
+                    sublayout = QHBoxLayout()
+                    sublayout.addWidget(labels[p])
+                    sublayout.addWidget(self.usr_entry[p])
+                    self.lin_layout.addLayout(sublayout)
+                    # self.sublayout.setAlignment(Qt.AlignLeft)
+
+        # Resize all of the LineEntry widgets
+        self.gau_layout.setAlignment(Qt.AlignTop)
+        self.gau_layout.setAlignment(Qt.AlignTop)
+        self.gau_layout.setAlignment(Qt.AlignTop)
+        self.gau_layout.setAlignment(Qt.AlignTop)
+        for label, widget in self.usr_entry.items():
+            pass
+            # widget.setMaxLength(10)
+            #widget.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
     def update_usr_params(self, entry):
         print('\nUpdated parameters:')
@@ -351,16 +462,7 @@ class App(QMainWindow):
 
     def fit(self):
         self.init_model()
-        if self.ngau != 0:
-            self.model += models.gauss_mod(self.ngau) 
-        if self.nlor != 0:
-            self.model += models.lor_mod(self.nlor)
-        if self.nvoi != 0:
-            self.model += models.voigt_mod(self.nvoi)
-        
-        # adding this guessing function doesn't seem to help...
-        self.guess_params()
-
+        self.init_params()
         self.result = self.model.fit(
             data=self.data.iloc[:,self.ycol_idx],
             params=self.params,
@@ -376,8 +478,9 @@ class App(QMainWindow):
             self.statusBar.showMessage(idx_error_msg, msg_length)
             return
         self.xcol_idx = idx
+        self.init_params()
+        self.result = None
         self.plot()
-        self.fit()
         self.statusBar.showMessage(
             'ColumnIndex(X) = ' + str(idx), msg_length
         )
@@ -389,8 +492,9 @@ class App(QMainWindow):
             self.statusBar.showMessage(idx_error_msg, msg_length)
             return
         self.ycol_idx = idx
+        self.init_params()
+        self.result = None
         self.plot()
-        self.fit()
         self.statusBar.showMessage(
             'ColumnIndex(Y) = ' + str(idx), msg_length
         )
@@ -464,6 +568,37 @@ class App(QMainWindow):
                     self.clear_layout(item.layout())
                 layout.removeItem(item)
 
+    @pyqtSlot()
+    def increment(self, val, add):
+        if add:
+            if val == 'gau':
+                self.ngau += 1
+            if val == 'lor':
+                self.nlor += 1
+            if val == 'voi':
+                self.nvoi += 1
+            if val == 'lin':
+                self.nlin += 1
+        if not add:
+            if val == 'gau':
+                self.ngau -= 1
+            if val == 'lor':
+                self.nlor -= 1
+            if val == 'voi':
+                self.nvoi -= 1
+            if val == 'lin':
+                self.nlin -= 1
+
+        # make sure value doesn't go below zero
+        if self.ngau < 0:
+            self.ngau = 0
+        if self.nlor < 0:
+            self.nlor = 0
+        if self.nvoi < 0:
+            self.nvoi = 0
+        if self.nlin < 1:
+            self.nlin = 1
+        
 
 class PandasModel(QAbstractTableModel): 
     def __init__(self, df = pd.DataFrame(), parent=None): 
