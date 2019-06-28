@@ -120,6 +120,23 @@ class App(QMainWindow):
         # create params widget
         self.params_widget = QWidget() 
         self.params_layout = QFormLayout()
+        # self.params_layout = QHBoxLayout()
+        # self.gau_layout = QVBoxLayout()
+        # self.lor_layout = QVBoxLayout()
+        # self.voi_layout = QVBoxLayout()
+        # self.lin_layout = QVBoxLayout()
+        # self.gau_sublayout = QHBoxLayout()
+        # self.lor_sublayout = QHBoxLayout()
+        # self.voi_sublayout = QHBoxLayout()
+        # self.lin_sublayout = QHBoxLayout()
+        # self.gau_layout.addLayout(self.gau_sublayout)
+        # self.lor_layout.addLayout(self.gau_sublayout)
+        # self.voi_layout.addLayout(self.gau_sublayout)
+        # self.lin_layout.addLayout(self.gau_sublayout)
+        # self.params_layout.addLayout(self.gau_layout)
+        # self.params_layout.addLayout(self.lor_layout)
+        # self.params_layout.addLayout(self.voi_layout)
+        # self.params_layout.addLayout(self.lin_layout)
         self.params_widget.setLayout(self.params_layout)
 
         # add everything to layout
@@ -131,6 +148,7 @@ class App(QMainWindow):
         self.main_widget.setLayout(self.main_layout)
 
         # Tab 1 - Graph / Model
+        ## Graph
         plt.style.use('fivethirtyeight')
         self.tab1.figure = Figure(figsize=(9,6), dpi=110)
         self.tab1.canvas = FigureCanvas(self.tab1.figure)
@@ -138,6 +156,8 @@ class App(QMainWindow):
         graph_layout = QGridLayout()
         graph_layout.addWidget(self.tab1.canvas, 0, 0)
         graph_layout.addWidget(self.tab1.toolbar, 1, 0)
+
+        ## Model
         model_layout = QHBoxLayout()
         ## specify number of gaussian curves
         gauss_label = QLabel(self)
@@ -228,6 +248,7 @@ class App(QMainWindow):
     def guess_params(self):
         self.params = Parameters()
         self.clear_layout(self.params_layout)
+        self.usr_entry = {}
         for comp in self.model.components:
             if comp.prefix.find('gau') != -1 or \
                     comp.prefix.find('lor') != -1 or \
@@ -240,75 +261,93 @@ class App(QMainWindow):
                 self.params.add(c, cval, True, cmin, cmax)
 
                 # add widgets (gau/lor/voi center)
-                label = QLabel()
-                entry = QLineEdit()
-                label.setText(c)
-                entry.setPlaceholderText(str(round(cval,5)))
-                self.params_layout.addRow(label, entry)
-                entry.returnPressed.connect(self.test_function)
+                center_label = QLabel()
+                self.usr_entry[c] = QLineEdit()
+                center_label.setText(c)
+                self.usr_entry[c].setPlaceholderText(str(round(cval,5)))
+                self.params_layout.addRow(center_label, self.usr_entry[c])
+                # note: connect() expects a callable func, hence the lambda
+                self.usr_entry[c].returnPressed.connect(
+                    lambda: self.update_usr_params(self.usr_entry)
+                )
 
                 a = comp.prefix + 'amplitude'
                 aval = self.data.iloc[:,self.ycol_idx].mean()
                 amin = self.data.iloc[:,self.ycol_idx].min()
                 amax = self.data.iloc[:,self.ycol_idx].max()
-                self.params.add(a, aval, True, amin, amax)            
+                self.params.add(a, aval, True, amin, amax)
                 # add widgets (gau/lor/voi amplitude)
-                label = QLabel()
-                entry = QLineEdit()
-                label.setText(a)
-                entry.setPlaceholderText(str(round(aval,5)))
-                self.params_layout.addRow(label, entry)
-                entry.returnPressed.connect(self.test_function)
+                amp_label = QLabel()
+                self.usr_entry[a] = QLineEdit()
+                amp_label.setText(a)
+                self.usr_entry[a].setPlaceholderText(str(round(aval,5)))
+                self.params_layout.addRow(amp_label, self.usr_entry[a])
+                self.usr_entry[a].returnPressed.connect(
+                    lambda: self.update_usr_params(self.usr_entry)
+                )
 
                 s = comp.prefix + 'sigma'
                 sval = self.data.iloc[:,self.xcol_idx].std()
                 self.params.add(s, sval, True)            
                 # add widgets (gau/lor/voi sigma)
-                label = QLabel()
-                entry = QLineEdit()
-                label.setText(s)
-                entry.setPlaceholderText(str(round(sval,5)))
-                self.params_layout.addRow(label, entry)
-                entry.returnPressed.connect(self.test_function)
+                sig_label = QLabel()
+                self.usr_entry[s] = QLineEdit()
+                sig_label.setText(s)
+                self.usr_entry[s].setPlaceholderText(str(round(sval,5)))
+                self.params_layout.addRow(sig_label, self.usr_entry[s])
+                self.usr_entry[s].returnPressed.connect(
+                    lambda: self.update_usr_params(self.usr_entry)
+                )
 
-                f = comp.prefix + 'fraction'
-                fval = 0.5
                 if comp.prefix.find('voi') != -1:
+                    f = comp.prefix + 'fraction'
+                    fval = 0.5
                     self.params.add(f, fval, True)
                     # add widgets (voi fraction)
-                    label = QLabel()
-                    entry = QLineEdit()
-                    label.setText(f)
-                    entry.setPlaceholderText(str(round(fval,5)))
-                    self.params_layout.addRow(label, entry)
-                    entry.returnPressed.connect(self.test_function)
+                    frac_label = QLabel()
+                    self.usr_entry[f] = QLineEdit()
+                    frac_label.setText(f)
+                    self.usr_entry[f].setPlaceholderText(str(round(fval,5)))
+                    self.params_layout.addRow(frac_label, self.usr_entry[f])
+                    frac_entry.returnPressed.connect(
+                        lambda: self.update_usr_params(self.usr_entry)
+                    )
             else:
                 slope = comp.prefix + 'slope'
                 slopeval = self.data.iloc[:,self.ycol_idx].mean()
                 self.params.add(slope, slopeval, True)
+                # add widgets (line slope)
+                slope_label = QLabel()
+                self.usr_entry[slope] = QLineEdit()
+                slope_label.setText(slope)
+                self.usr_entry[slope].setPlaceholderText(str(round(slopeval,5)))
+                self.params_layout.addRow(slope_label, self.usr_entry[slope])
+                self.usr_entry[slope].returnPressed.connect(
+                    lambda: self.update_usr_params(self.usr_entry)
+                )
+
                 intc = comp.prefix + 'intercept'
                 intcval = self.data.iloc[:,self.ycol_idx].mean()
                 self.params.add(intc, intcval, True)
-                # add widgets (line slope)
-                label = QLabel()
-                entry = QLineEdit()
-                label.setText(slope)
-                entry.setPlaceholderText(str(round(slopeval,5)))
-                self.params_layout.addRow(label, entry)
-                entry.returnPressed.connect(self.test_function)
                 # add widgets (line intercept)
-                label = QLabel()
-                entry = QLineEdit()
-                label.setText(intc)
-                entry.setPlaceholderText(str(round(intcval,5)))
-                self.params_layout.addRow(label, entry)
-                entry.returnPressed.connect(
-                    self.test_function,
+                intc_label = QLabel()
+                self.usr_entry[intc] = QLineEdit()
+                intc_label.setText(intc)
+                self.usr_entry[intc].setPlaceholderText(str(round(intcval,5)))
+                self.params_layout.addRow(intc_label, self.usr_entry[intc])
+                self.usr_entry[intc].returnPressed.connect(
+                    lambda: self.update_usr_params(self.usr_entry)
                 )
 
-    def test_function(self):
-        print()
-
+    def update_usr_params(self, entry):
+        print('\nUpdated parameters:')
+        for param, entry_widget in self.usr_entry.items():
+            try:
+                self.params[param].value = float(entry_widget.text())
+            except:
+                pass
+            print(param + ' (after): ' + str(self.params[param].value))
+        self.fit()
 
     def fit(self):
         self.init_model()
