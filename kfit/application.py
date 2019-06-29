@@ -20,10 +20,10 @@ class App(QMainWindow):
     def __init__(self):
         super().__init__()
         self.title = 'kfit'
-        self.left = 1000
+        self.left = 800
         self.top = 200
-        self.width = 2000
-        self.height = 1400
+        self.width = 2200
+        self.height = 1600
         self.file_name = ''
         self.xcol_idx = 0
         self.ycol_idx = 1
@@ -35,6 +35,8 @@ class App(QMainWindow):
         self.result = None
         # empty Parameters to hold parameter guesses/constraints
         self.params = Parameters()
+        self.guesses = {}
+        self.usr_vals = {}
 
         # temporary data 
         x = np.linspace(0,10,500)
@@ -120,26 +122,42 @@ class App(QMainWindow):
         # create params widget
         self.params_widget = QWidget() 
         self.params_layout = QGridLayout()
-        self.gau_widget = QWidget()
         self.gau_layout = QVBoxLayout()
+        self.gau_widget = QWidget()
         self.gau_widget.setLayout(self.gau_layout)
         self.gau_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.gau_scroll = QScrollArea()
+        self.gau_scroll.setWidget(self.gau_widget)
+        self.gau_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.gau_scroll.setWidgetResizable(True)
         self.lor_widget = QWidget()
         self.lor_layout = QVBoxLayout()
         self.lor_widget.setLayout(self.lor_layout)
         self.lor_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.lor_scroll = QScrollArea()
+        self.lor_scroll.setWidget(self.lor_widget)
+        self.lor_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.lor_scroll.setWidgetResizable(True)
         self.voi_widget = QWidget()
         self.voi_layout = QVBoxLayout()
         self.voi_widget.setLayout(self.voi_layout)
         self.voi_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.voi_scroll = QScrollArea()
+        self.voi_scroll.setWidget(self.voi_widget)
+        self.voi_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.voi_scroll.setWidgetResizable(True)
         self.lin_widget = QWidget()
         self.lin_layout = QVBoxLayout()
         self.lin_widget.setLayout(self.lin_layout)
         self.lin_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.params_layout.addWidget(self.gau_widget, 0, 1)
-        self.params_layout.addWidget(self.lor_widget, 0, 2)
-        self.params_layout.addWidget(self.voi_widget, 0, 3)
-        self.params_layout.addWidget(self.lin_widget, 0, 4)
+        self.lin_scroll = QScrollArea()
+        self.lin_scroll.setWidget(self.lin_widget)
+        self.lin_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.lin_scroll.setWidgetResizable(True)
+        self.params_layout.addWidget(self.gau_scroll, 0, 1)
+        self.params_layout.addWidget(self.lor_scroll, 0, 2)
+        self.params_layout.addWidget(self.voi_scroll, 0, 3)
+        self.params_layout.addWidget(self.lin_scroll, 0, 4)
         self.params_widget.setLayout(self.params_layout)
 
         # add everything to layout
@@ -153,8 +171,9 @@ class App(QMainWindow):
         # Tab 1 - Graph / Model
         ## Graph
         plt.style.use('fivethirtyeight')
-        self.tab1.figure = Figure(figsize=(9,6), dpi=110)
+        self.tab1.figure = Figure(figsize=(8,6), dpi=110)
         self.tab1.canvas = FigureCanvas(self.tab1.figure)
+        self.tab1.canvas.setMinimumHeight(800)
         self.tab1.toolbar =  NavigationToolbar(self.tab1.canvas, self)
         graph_layout = QGridLayout()
         graph_layout.addWidget(self.tab1.canvas, 0, 0)
@@ -293,166 +312,198 @@ class App(QMainWindow):
 
     def init_params(self):
         self.init_model()
-        self.params = Parameters()
+        self.guess_params()
+        #self.params = Parameters()
+        self.usr_vals = {
+            'val': {},
+            'min': {},
+            'max': {}
+        }
+        labels = {}
+        rnd = 3  # decimals to round to in placeholder text
         for layout in [
             self.gau_layout, self.lor_layout,
             self.voi_layout, self.lin_layout
         ]:
             self.clear_layout(layout)
-        self.usr_entry = {}
-        labels = {}
-        # !!! right now it's impossible to run this w/o fitting first
-        # I'd like to change this behavior...
         for comp in self.model.components:
             if comp.prefix.find('gau') != -1 or \
                     comp.prefix.find('lor') != -1 or \
                     comp.prefix.find('voi') != -1:
 
                 c = comp.prefix + 'center'
-                cval = self.data.iloc[:,self.xcol_idx].mean()
-                cmin = self.data.iloc[:,self.xcol_idx].min()
-                cmax = self.data.iloc[:,self.xcol_idx].max()
-                self.params.add(c, cval, True, cmin, cmax)
-
-                labels[c] = QLabel()
-                self.usr_entry[c+'_val'] = QLineEdit()
-                self.usr_entry[c+'_min'] = QLineEdit()
-                self.usr_entry[c+'_max'] = QLineEdit()
-                labels[c].setText(c)
-                self.usr_entry[c+'_val'].setPlaceholderText(str(round(cval,5)))
-                self.usr_entry[c+'_min'].setPlaceholderText(str(round(cmin,5)))
-                self.usr_entry[c+'_max'].setPlaceholderText(str(round(cmax,5)))
-
                 a = comp.prefix + 'amplitude'
-                aval = self.data.iloc[:,self.ycol_idx].mean()
-                amin = self.data.iloc[:,self.ycol_idx].min()
-                amax = self.data.iloc[:,self.ycol_idx].max()
-                self.params.add(a, aval, True, amin, amax)
-                labels[a] = QLabel()
-                self.usr_entry[a+'_val'] = QLineEdit()
-                self.usr_entry[a+'_min'] = QLineEdit()
-                self.usr_entry[a+'_max'] = QLineEdit()
-                labels[a].setText(a)
-                self.usr_entry[a+'_val'].setPlaceholderText(str(round(aval,5)))
-                self.usr_entry[a+'_min'].setPlaceholderText(str(round(amin,5)))
-                self.usr_entry[a+'_max'].setPlaceholderText(str(round(amax,5)))
-
                 s = comp.prefix + 'sigma'
-                sval = self.data.iloc[:,self.xcol_idx].std()
-                smin = 0
-                smax = None
-                self.params.add(s, sval, True)            
-                labels[s] = QLabel()
-                self.usr_entry[s+'_val'] = QLineEdit()
-                self.usr_entry[s+'_min'] = QLineEdit()
-                self.usr_entry[s+'_max'] = QLineEdit()
-                labels[s].setText(s)
-                self.usr_entry[s+'_val'].setPlaceholderText(str(round(sval,5)))
-                self.usr_entry[s+'_min'].setPlaceholderText(str(round(smin,5)))
-                self.usr_entry[s+'_max'].setPlaceholderText('')
 
-                # set up connections
-                # note: connect() expects a callable func, hence the lambda
-                for item in ['_val', '_min', '_max']:
-                    self.usr_entry[c+item].returnPressed.connect(
-                        lambda: self.update_usr_params(self.usr_entry)
-                    )
-                    self.usr_entry[a+item].returnPressed.connect(
-                        lambda: self.update_usr_params(self.usr_entry)
-                    )
-                    self.usr_entry[s+item].returnPressed.connect(
-                        lambda: self.update_usr_params(self.usr_entry)
-                    )
+                for p in [c, a, s]:
+                    labels[p] = QLabel()
+                    labels[p].setText(p)
+
+                for key in self.usr_vals:
+                    for p in [c, a, s]:
+                        print(self.usr_vals[key][p])
+                        self.usr_vals[key][p] = QLineEdit()
+                        self.usr_vals[key][p].setPlaceholderText(
+                            str(round(self.guesses[p][key], rnd))
+                        )
+                        # set up connections
+                        # connect() expects a callable func, hence the lambda
+                        self.usr_vals[key][p].returnPressed.connect(
+                            lambda: self.update_usr_params(self.usr_vals)
+                        )
 
                 # add widgets to respective layouts
                 if comp.prefix.find('gau') != -1:
                     for p in [c, a, s]:
                         sublayout = QHBoxLayout()
                         sublayout.addWidget(labels[p])
-                        sublayout.addWidget(self.usr_entry[p+'_val'])
-                        sublayout.addWidget(self.usr_entry[p+'_min'])
-                        sublayout.addWidget(self.usr_entry[p+'_max'])
+                        sublayout.addWidget(self.usr_vals[p+'_val'])
+                        sublayout.addWidget(self.usr_vals[p+'_min'])
+                        sublayout.addWidget(self.usr_vals[p+'_max'])
                         self.gau_layout.addLayout(sublayout)
                 if comp.prefix.find('lor') != -1:
                     for p in [c, a, s]:
                         sublayout = QHBoxLayout()
                         sublayout.addWidget(labels[p])
-                        sublayout.addWidget(self.usr_entry[p+'_val'])
-                        sublayout.addWidget(self.usr_entry[p+'_min'])
-                        sublayout.addWidget(self.usr_entry[p+'_max'])
+                        sublayout.addWidget(self.usr_vals[p+'_val'])
+                        sublayout.addWidget(self.usr_vals[p+'_min'])
+                        sublayout.addWidget(self.usr_vals[p+'_max'])
                         self.lor_layout.addLayout(sublayout)
                 # voigt needs an additional param (fraction)
                 if comp.prefix.find('voi') != -1:
-                    f = comp.prefix + 'fraction'
+                    f = comp.prefix + 'frac'
                     fval = 0.5
                     fmin = 0
                     fmax = 1
-                    self.params.add(f, fval, True)
+                    self.params.add(comp.prefix+'fraction', fval, True)
                     labels[f] = QLabel()
-                    self.usr_entry[f+'_val'] = QLineEdit()
-                    self.usr_entry[f+'_min'] = QLineEdit()
-                    self.usr_entry[f+'_max'] = QLineEdit()
+                    self.usr_vals[f+'_val'] = QLineEdit()
+                    self.usr_vals[f+'_min'] = QLineEdit()
+                    self.usr_vals[f+'_max'] = QLineEdit()
                     labels[f].setText(f)
-                    self.usr_entry[f+'_val'].setPlaceholderText(str(round(fval,5)))
-                    self.usr_entry[f+'_min'].setPlaceholderText(str(round(fmin,5)))
-                    self.usr_entry[f+'_max'].setPlaceholderText(str(round(fmax,5)))
+                    self.usr_vals[f+'_val'].setPlaceholderText(str(round(fval,rnd)))
+                    self.usr_vals[f+'_min'].setPlaceholderText(str(round(fmin,rnd)))
+                    self.usr_vals[f+'_max'].setPlaceholderText(str(round(fmax,rnd)))
 
                     # set up connections
                     for item in ['_val', '_min', '_max']:
-                        self.usr_entry[f+item].returnPressed.connect(
-                            lambda: self.update_usr_params(self.usr_entry)
+                        self.usr_vals[f+item].returnPressed.connect(
+                            lambda: self.update_usr_params(self.usr_vals)
                         )
                     # add voigt widgets
                     for p in [c, a, s, f]:
                         sublayout = QHBoxLayout()
                         sublayout.addWidget(labels[p])
-                        sublayout.addWidget(self.usr_entry[p+'_val'])
-                        sublayout.addWidget(self.usr_entry[p+'_min'])
-                        sublayout.addWidget(self.usr_entry[p+'_max'])
+                        sublayout.addWidget(self.usr_vals[p+'_val'])
+                        sublayout.addWidget(self.usr_vals[p+'_min'])
+                        sublayout.addWidget(self.usr_vals[p+'_max'])
                         self.voi_layout.addLayout(sublayout)
             else:
                 # line model
+                ## slope
                 slope = comp.prefix + 'slope'
                 slopeval = self.data.iloc[:,self.ycol_idx].mean()
                 self.params.add(slope, slopeval, True)
+                self.usr_vals[slope+'_val'] = QLineEdit()
+                self.usr_vals[slope+'_min'] = QLineEdit()
+                self.usr_vals[slope+'_max'] = QLineEdit()
+                self.usr_vals[slope+'_val'].setPlaceholderText('val')
+                self.usr_vals[slope+'_min'].setPlaceholderText('min')
+                self.usr_vals[slope+'_max'].setPlaceholderText('max')
                 labels[slope] = QLabel()
-                self.usr_entry[slope] = QLineEdit()
                 labels[slope].setText(slope)
-                self.usr_entry[slope].setPlaceholderText(str(round(slopeval,5)))
-                self.usr_entry[slope].returnPressed.connect(
-                    lambda: self.update_usr_params(self.usr_entry)
-                )
-                intc = comp.prefix + 'intercept'
+                ## intercept
+                intc = comp.prefix + 'int'
                 intcval = self.data.iloc[:,self.ycol_idx].mean()
-                self.params.add(intc, intcval, True)
+                self.params.add(comp.prefix + 'intercept', intcval, True)
+                self.usr_vals[intc+'_val'] = QLineEdit()
+                self.usr_vals[intc+'_min'] = QLineEdit()
+                self.usr_vals[intc+'_max'] = QLineEdit()
+                self.usr_vals[intc+'_val'].setPlaceholderText('val')
+                self.usr_vals[intc+'_min'].setPlaceholderText('min')
+                self.usr_vals[intc+'_max'].setPlaceholderText('max')
                 labels[intc] = QLabel()
-                self.usr_entry[intc] = QLineEdit()
                 labels[intc].setText(intc)
-                self.usr_entry[intc].setPlaceholderText(str(round(intcval,5)))
-                self.usr_entry[intc].returnPressed.connect(
-                    lambda: self.update_usr_params(self.usr_entry)
-                )
+                for item in ['_val', '_min', '_max']:
+                    self.usr_vals[slope+item].returnPressed.connect(
+                        lambda: self.update_usr_params(self.usr_vals)
+                    )
+                    self.usr_vals[intc+item].returnPressed.connect(
+                        lambda: self.update_usr_params(self.usr_vals)
+                    )
                 # add line widgets
                 for p in [slope, intc]:
                     sublayout = QHBoxLayout()
                     sublayout.addWidget(labels[p])
-                    sublayout.addWidget(self.usr_entry[p])
+                    sublayout.addWidget(self.usr_vals[p+'_val'])
+                    sublayout.addWidget(self.usr_vals[p+'_min'])
+                    sublayout.addWidget(self.usr_vals[p+'_max'])
                     self.lin_layout.addLayout(sublayout)
                     # self.sublayout.setAlignment(Qt.AlignLeft)
 
-        # Resize all of the LineEntry widgets
-        self.gau_layout.setAlignment(Qt.AlignTop)
-        self.gau_layout.setAlignment(Qt.AlignTop)
-        self.gau_layout.setAlignment(Qt.AlignTop)
-        self.gau_layout.setAlignment(Qt.AlignTop)
-        for label, widget in self.usr_entry.items():
-            pass
-            # widget.setMaxLength(10)
-            #widget.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        # # Resize all of the LineEntry widgets
+        # for label, widget in self.usr_vals.items():
+        #     widget.setMaximumWidth(100)
+
+    def guess_params(self):
+        self.guesses = {}
+        for comp in self.model.components:
+            if comp.prefix.find('gau') != -1 or \
+                    comp.prefix.find('lor') != -1 or \
+                    comp.prefix.find('voi') != -1:
+
+                c = comp.prefix + 'center'
+                a = comp.prefix + 'amplitude'
+                s = comp.prefix + 'sigma'
+
+                self.guesses[c] = {
+                    'val': self.data.iloc[:,self.xcol_idx].mean(),
+                    'min': self.data.iloc[:,self.xcol_idx].min(),
+                    'max': self.data.iloc[:,self.xcol_idx].max()
+                }
+                self.guesses[a] = {
+                    'val': self.data.iloc[:,self.ycol_idx].mean(),
+                    'min': self.data.iloc[:,self.ycol_idx].min(),
+                    'max': self.data.iloc[:,self.ycol_idx].max()
+                }
+                self.guesses[s] = {
+                    'val':  self.data.iloc[:,self.xcol_idx].std(),
+                    'min':  0,
+                    'max':  np.ptp(self.data.iloc[:,self.xcol_idx].array)
+                }
+
+                if comp.prefix.find('voi') != -1:
+                    f = comp.prefix + 'fraction'
+                    self.guesses[f] = {
+                        'val': 0.5,
+                        'min': 0,
+                        'max': 1
+                    }
+            else:
+                slope = comp.prefix + 'slope'
+                intc = comp.prefix + 'intercept'
+                self.guesses[slope] = {
+                    'val': self.data.iloc[:,self.ycol_idx].mean(),
+                    'min': None,
+                    'max': None
+                }
+                self.guesses[intc] = {
+                    'val': self.data.iloc[:,self.ycol_idx].mean(),
+                    'min': None,
+                    'max': None
+                }
+
+        for param, vals in self.guesses.items():
+            self.params.add(
+                name=param, value=vals['val'],
+                vary=True, min=vals['min'], max=vals['max']
+            )
+        print(self.params)
+
 
     def update_usr_params(self, entry):
         print('\nUpdated parameters:')
-        for param, entry_widget in self.usr_entry.items():
+        for param, entry_widget in self.usr_vals.items():
             try:
                 self.params[param].value = float(entry_widget.text())
             except:
@@ -553,8 +604,9 @@ class App(QMainWindow):
                     linewidth=2, linestyle='--',
                     c=cmap(i/len(components))
                 )
-        ax.set_xlabel(self.data.columns[self.xcol_idx], labelpad=10)
+        ax.set_xlabel(self.data.columns[self.xcol_idx], labelpad=15)
         ax.set_ylabel(self.data.columns[self.ycol_idx], labelpad=15)
+        self.tab1.figure.subplots_adjust(bottom=0.15, left=0.06, right=0.94)
         self.tab1.canvas.draw()
 
     def clear_layout(self, layout):

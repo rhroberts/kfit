@@ -1,23 +1,43 @@
 <h1 id="development-notes-and-to-dos">Development Notes and TO-DOs</h1>
 <h2 id="notes">Notes</h2>
+<ul>
+<li>Parameter Widgets
+<ul>
+<li>These should be added by buttons (Gaussians [+], etc..) for each parameter columns</li>
+<li>Should not erase all widgets and start over when one is added
+<ul>
+<li>This forgets user input values</li>
+</ul></li>
+<li>When a new parameter is added, the fit should use the user guesses for any persistent parameters and then guess at the new one</li>
+</ul></li>
+</ul>
 <h2 id="to-dos">TO-DOs</h2>
-<h3 id="smaller-tasks">Smaller Tasks</h3>
+<h3 id="high-priority">High Priority</h3>
 <ul>
-<li>Make the param_layout have four columns – one for each peak types
+<li>App crashed when loading new data set <em>after</em> fitting initial one</li>
+</ul>
+<h3 id="medium-priority">Medium Priority</h3>
 <ul>
+<li>Need to show warning when user tries to enter value above/below the parameter bounds</li>
+<li>Placeholder text needs to be updated after user entry
+<ul>
+<li>When you removes the text they added after updating the params, the default value used in the model is the previous user entry, but the placeholder text show the initial guess by the program</li>
+</ul></li>
 <li>The layout itself should have a fixed height
 <ul>
 <li>i.e. not eat up space from the plot widget when there are a bunch of params</li>
 <li>Something should fill this space before the first fit</li>
 </ul></li>
 <li>And each column should be individually scrollable</li>
-</ul></li>
-<li>Add lineEntry widgets for min() and max() parmeters as well…</li>
-<li><del>Round off the placeholder text in entry widgets</del>
+</ul>
+<h3 id="low-priority">Low Priority</h3>
 <ul>
-<li>done, but should really do something more robust in cases of values on the order of <span class="math inline">10<sup> − 6</sup></span> or smaller</li>
-</ul></li>
-<li><del>Am I using pyqtSlot() correctly?</del>
+<li>Think more carefully about when/why things <em>actually</em> need to be class attributes of App()</li>
+</ul>
+<h3 id="done">Done</h3>
+<ul>
+<li>Make the param_layout have four columns – one for each peak types</li>
+<li>Am I using pyqtSlot() correctly?
 <ul>
 <li>https://stackoverflow.com/questions/39210500/how-do-i-connect-a-pyqt5-slot-to-a-signal-function-in-a-class</li>
 <li>seems like I can probably delete them all…
@@ -25,16 +45,42 @@
 <li>yup</li>
 </ul></li>
 </ul></li>
-</ul>
-<h3 id="larger-tasks">Larger Tasks</h3>
+<li>Add lineEntry widgets for min() and max() parmeters as well…
 <ul>
-<li>Think more carefully about when/why things <em>actually</em> need to be class attributes of App()</li>
-<li><strong>How will we get user entry from the param widgets if they are dynamic?</strong>
+<li>Round off the placeholder text in entry widgets
+<ul>
+<li>done, but should really do something more robust in cases of values on the order of <span class="math inline">10<sup> − 6</sup></span> or smaller
+<ul>
+<li>eh, it’s just the placeholder, not the value being used</li>
+</ul></li>
+</ul></li>
+</ul></li>
+<li>Fix the app logic re:
+<ul>
+<li>When are fit(), update_usr_params(), and guess_params() called
+<ul>
+<li>Right now it’s a clusterfuck and user params get overwritten by guesses when fitting</li>
+<li>Also, as it stands guess_params doesn’t work without a call to fit, but this results in really slow fits w/o user having opportunity to specify params first</li>
+</ul></li>
+</ul></li>
+<li>How will we get user entry from the param widgets if they are dynamic?
 <ul>
 <li>Status:
 <ul>
 <li>I can connect them up to slots, and all entry widgets can produce a signal</li>
-<li>Need to direct those to the param values..</li>
+<li>Need to direct those to the param values…</li>
+<li>Can print out the user entered value, but…
+<ul>
+<li>With multiples of the same peak type (or in family gau/lor/voi), only the last peak can be addressed…</li>
+<li>The former line entries are overwritten in loop</li>
+<li>Perhaps need a dictionary?</li>
+</ul></li>
+<li><strong>I think I need to separate the “setting up the model, taking first guesses” and the “user updating of model params” functionality</strong></li>
+<li>Done</li>
+</ul></li>
+<li>Solution:
+<ul>
+<li>Just needed to keep the line entry widgets in a dictionary, all good now</li>
 </ul></li>
 </ul></li>
 </ul>
