@@ -20,9 +20,9 @@ class App(QMainWindow):
     def __init__(self):
         super().__init__()
         self.title = 'kfit'
-        self.left = 800
-        self.top = 200
-        self.width = 2200
+        self.left = 400
+        self.top = 150
+        self.width = 2400
         self.height = 1600
         self.file_name = ''
         self.xcol_idx = 0
@@ -35,16 +35,30 @@ class App(QMainWindow):
         self.result = None
         # empty Parameters to hold parameter guesses/constraints
         self.params = Parameters()
-        self.guesses = {}
-        self.usr_vals = {}
+        self.guesses = {
+            'value': {},
+            'min': {},
+            'max': {}
+        }
+        self.usr_vals = {
+            'value': {},
+            'min': {},
+            'max': {}
+        }
+        self.usr_entry_widgets = {}
 
         # temporary data 
         x = np.linspace(0,10,500)
         y = models.gauss(x, 0.5, 4, 0.4) + \
                 models.gauss(x, 0.8, 5, 0.2) + \
                 models.gauss(x, 0.4, 6, 0.3) + 0.2
+        # set data
         self.data = pd.DataFrame([x,y]).T
         self.data.columns = ['x', 'y']
+        self.x = self.data['x']
+        self.y = self.data['y']
+        self.xmin = self.data['x'].min()
+        self.xmax = self.data['x'].max()
 
         self.initUI()
 
@@ -68,46 +82,48 @@ class App(QMainWindow):
         self.topbar_layout = QHBoxLayout()
         self.topbar_widget = QWidget()
         # import button
-        self.importButton = QPushButton('', self)
-        self.importButton.setIcon(QIcon.fromTheme('up'))
-        self.importButton.setIconSize(QSize(50,50))
+        self.importButton = QPushButton('Import', self)
+        self.importButton.setMaximumWidth(150)
         self.importButton.clicked.connect(self.get_data)
         # fit button
-        self.fitButton = QPushButton('', self)
-        self.fitButton.setIcon(QIcon.fromTheme('dialog-apply'))
-        self.fitButton.setIconSize(QSize(50,50))
+        self.fitButton = QPushButton('Fit', self)
+        self.fitButton.setMaximumWidth(150)
         self.fitButton.clicked.connect(self.fit)
-        self.fitButton.setStyleSheet('font-style: bold')
-        # quit button
-        self.quitButton = QPushButton('', self)
-        self.quitButton.setIcon(QIcon.fromTheme('gtk-cancel'))
-        self.quitButton.setIconSize(QSize(50,50))
-        self.quitButton.clicked.connect(self.close_app)
+        # progress bar
+        self.progressBar = QProgressBar()
+        self.progressBar.setMaximumWidth(200)
+        self.progressBar.hide()
         # get column header for x
         self.xLabel = QLabel(self)
         self.xLabel.setText('ColumnIndex(X):')
+        self.xLabel.setMaximumWidth(220)
+        self.xLabel.setAlignment(Qt.AlignCenter)
         self.xLineEntry = QLineEdit(self)
         self.xLineEntry.setPlaceholderText('0')
         self.xLineEntry.setAlignment(Qt.AlignCenter)
+        self.xLineEntry.setMaximumWidth(100)
         self.xLineEntry.returnPressed.connect(self.xset_click)
         # get column header for y
         self.yLabel = QLabel(self)
         self.yLabel.setText('ColumnIndex(Y):')
+        self.yLabel.setMaximumWidth(220)
+        self.yLabel.setAlignment(Qt.AlignVCenter)
         self.yLineEntry = QLineEdit(self)
         self.yLineEntry.setPlaceholderText('1')
         self.yLineEntry.setAlignment(Qt.AlignCenter)
+        self.yLineEntry.setMaximumWidth(100)
         self.yLineEntry.returnPressed.connect(self.yset_click)
         # add topbar widgets to layout
-        self.topbar_layout.addSpacing(500)
         self.topbar_layout.addWidget(self.xLabel)
         self.topbar_layout.addWidget(self.xLineEntry)
-        self.topbar_layout.addSpacing(50)
+        self.topbar_layout.addSpacing(25)
         self.topbar_layout.addWidget(self.yLabel)
         self.topbar_layout.addWidget(self.yLineEntry)
-        self.topbar_layout.addSpacing(250)
+        self.topbar_layout.addSpacing(75)
         self.topbar_layout.addWidget(self.fitButton)
         self.topbar_layout.addWidget(self.importButton)
-        self.topbar_layout.addWidget(self.quitButton)
+        self.topbar_layout.addWidget(self.progressBar)
+        self.topbar_layout.setAlignment(Qt.AlignRight)
         self.topbar_widget.setLayout(self.topbar_layout)
 
         # create tabs widget
@@ -175,9 +191,13 @@ class App(QMainWindow):
         self.tab1.canvas = FigureCanvas(self.tab1.figure)
         self.tab1.canvas.setMinimumHeight(800)
         self.tab1.toolbar =  NavigationToolbar(self.tab1.canvas, self)
-        graph_layout = QGridLayout()
-        graph_layout.addWidget(self.tab1.canvas, 0, 0)
-        graph_layout.addWidget(self.tab1.toolbar, 1, 0)
+        # need to see if the below setting looks ok on
+        # lower res displays
+        self.tab1.toolbar.setIconSize(QSize(36,36))
+        # self.tab1.toolbar.setAlignment(Qt.AlignCenter)
+        graph_layout = QVBoxLayout()
+        graph_layout.addWidget(self.tab1.toolbar)
+        graph_layout.addWidget(self.tab1.canvas)
 
         ## The "Set Model" layout
         model_layout = QGridLayout()
@@ -211,13 +231,13 @@ class App(QMainWindow):
         gauss_button_add.clicked.connect(
             lambda: self.increment('gau', True)
         )
-        gauss_button_add.clicked.connect(self.init_params)
+        gauss_button_add.clicked.connect(self.init_param_widgets)
         gauss_button_sub = QPushButton('', self)
         gauss_button_sub.setIcon(QIcon.fromTheme('list-remove'))
         gauss_button_sub.clicked.connect(
             lambda: self.increment('gau', False)
         )
-        gauss_button_sub.clicked.connect(self.init_params)
+        gauss_button_sub.clicked.connect(self.init_param_widgets)
         layout_setgau.addWidget(gauss_label)
         layout_setgau.addWidget(gauss_button_add)
         layout_setgau.addWidget(gauss_button_sub)
@@ -230,13 +250,13 @@ class App(QMainWindow):
         lorentz_button_add.clicked.connect(
             lambda: self.increment('lor', True)
         )
-        lorentz_button_add.clicked.connect(self.init_params)
+        lorentz_button_add.clicked.connect(self.init_param_widgets)
         lorentz_button_sub = QPushButton('', self)
         lorentz_button_sub.setIcon(QIcon.fromTheme('list-remove'))
         lorentz_button_sub.clicked.connect(
             lambda: self.increment('lor', False)
         )
-        lorentz_button_sub.clicked.connect(self.init_params)
+        lorentz_button_sub.clicked.connect(self.init_param_widgets)
         layout_setlor.addWidget(lorentz_label)
         layout_setlor.addWidget(lorentz_button_add)
         layout_setlor.addWidget(lorentz_button_sub)
@@ -249,13 +269,13 @@ class App(QMainWindow):
         voigt_button_add.clicked.connect(
             lambda: self.increment('voi', True)
         )
-        voigt_button_add.clicked.connect(self.init_params)
+        voigt_button_add.clicked.connect(self.init_param_widgets)
         voigt_button_sub = QPushButton('', self)
         voigt_button_sub.setIcon(QIcon.fromTheme('list-remove'))
         voigt_button_sub.clicked.connect(
             lambda: self.increment('voi', False)
         )
-        voigt_button_sub.clicked.connect(self.init_params)
+        voigt_button_sub.clicked.connect(self.init_param_widgets)
         layout_setvoi.addWidget(voigt_label)
         layout_setvoi.addWidget(voigt_button_add)
         layout_setvoi.addWidget(voigt_button_sub)
@@ -268,18 +288,18 @@ class App(QMainWindow):
         line_button_add.clicked.connect(
             lambda: self.increment('lin', True)
         )
-        line_button_add.clicked.connect(self.init_params)
+        line_button_add.clicked.connect(self.init_param_widgets)
         line_button_sub = QPushButton('', self)
         line_button_sub.setIcon(QIcon.fromTheme('list-remove'))
         line_button_sub.clicked.connect(
             lambda: self.increment('lin', False)
         )
-        line_button_sub.clicked.connect(self.init_params)
+        line_button_sub.clicked.connect(self.init_param_widgets)
         layout_setlin.addWidget(line_label)
         layout_setlin.addWidget(line_button_add)
         layout_setlin.addWidget(line_button_sub)
 
-        graph_layout.addLayout(model_layout, 2, 0)
+        graph_layout.addLayout(model_layout)
         self.tab1.setLayout(graph_layout)
         self.plot()
 
@@ -289,10 +309,12 @@ class App(QMainWindow):
         self.tab2.resizeColumnsToContents()
 
         # Tab 3 - Output
-        tab3_layout = QGridLayout()
+        self.tab3_widget = QPlainTextEdit()
+        tab3_layout = QVBoxLayout()
+        tab3_layout.addWidget(self.tab3_widget)
         self.tab3.setLayout(tab3_layout)
 
-        self.init_params()
+        self.init_param_widgets()
         self.show()
 
     def init_model(self):
@@ -310,12 +332,10 @@ class App(QMainWindow):
             msg_length
         )
 
-    def init_params(self):
+    def init_param_widgets(self):
         self.init_model()
-        self.guess_params()
-        #self.params = Parameters()
-        self.usr_vals = {
-            'val': {},
+        self.usr_entry_widgets = {
+            'value': {},
             'min': {},
             'max': {}
         }
@@ -326,201 +346,172 @@ class App(QMainWindow):
             self.voi_layout, self.lin_layout
         ]:
             self.clear_layout(layout)
-        for comp in self.model.components:
-            if comp.prefix.find('gau') != -1 or \
-                    comp.prefix.find('lor') != -1 or \
-                    comp.prefix.find('voi') != -1:
 
-                c = comp.prefix + 'center'
-                a = comp.prefix + 'amplitude'
-                s = comp.prefix + 'sigma'
-
-                for p in [c, a, s]:
-                    labels[p] = QLabel()
-                    labels[p].setText(p)
-
-                for key in self.usr_vals:
-                    for p in [c, a, s]:
-                        print(self.usr_vals[key][p])
-                        self.usr_vals[key][p] = QLineEdit()
-                        self.usr_vals[key][p].setPlaceholderText(
-                            str(round(self.guesses[p][key], rnd))
-                        )
-                        # set up connections
-                        # connect() expects a callable func, hence the lambda
-                        self.usr_vals[key][p].returnPressed.connect(
-                            lambda: self.update_usr_params(self.usr_vals)
-                        )
+        for param_name in self.model.param_names:
+                # set param label text
+                labels[param_name] = QLabel()
+                labels[param_name].setText(param_name)
+                # make qlineedit widgets
+                for key in self.usr_entry_widgets:
+                    self.usr_entry_widgets[key][param_name] = QLineEdit()
+                    if param_name in self.usr_vals[key]:
+                        self.usr_entry_widgets[key][param_name]\
+                            .setPlaceholderText(
+                                str(round(self.usr_vals[key][param_name], rnd))
+                            )
+                    else:
+                        self.usr_entry_widgets[key][param_name]\
+                            .setPlaceholderText(key)
+                    # set up connections
+                    # connect() expects a callable func, hence the lambda
+                    self.usr_entry_widgets[key][param_name].returnPressed.connect(
+                        lambda: self.update_usr_vals(self.usr_entry_widgets)
+                    )
 
                 # add widgets to respective layouts
-                if comp.prefix.find('gau') != -1:
-                    for p in [c, a, s]:
-                        sublayout = QHBoxLayout()
-                        sublayout.addWidget(labels[p])
-                        sublayout.addWidget(self.usr_vals[p+'_val'])
-                        sublayout.addWidget(self.usr_vals[p+'_min'])
-                        sublayout.addWidget(self.usr_vals[p+'_max'])
-                        self.gau_layout.addLayout(sublayout)
-                if comp.prefix.find('lor') != -1:
-                    for p in [c, a, s]:
-                        sublayout = QHBoxLayout()
-                        sublayout.addWidget(labels[p])
-                        sublayout.addWidget(self.usr_vals[p+'_val'])
-                        sublayout.addWidget(self.usr_vals[p+'_min'])
-                        sublayout.addWidget(self.usr_vals[p+'_max'])
-                        self.lor_layout.addLayout(sublayout)
-                # voigt needs an additional param (fraction)
-                if comp.prefix.find('voi') != -1:
-                    f = comp.prefix + 'frac'
-                    fval = 0.5
-                    fmin = 0
-                    fmax = 1
-                    self.params.add(comp.prefix+'fraction', fval, True)
-                    labels[f] = QLabel()
-                    self.usr_vals[f+'_val'] = QLineEdit()
-                    self.usr_vals[f+'_min'] = QLineEdit()
-                    self.usr_vals[f+'_max'] = QLineEdit()
-                    labels[f].setText(f)
-                    self.usr_vals[f+'_val'].setPlaceholderText(str(round(fval,rnd)))
-                    self.usr_vals[f+'_min'].setPlaceholderText(str(round(fmin,rnd)))
-                    self.usr_vals[f+'_max'].setPlaceholderText(str(round(fmax,rnd)))
-
-                    # set up connections
-                    for item in ['_val', '_min', '_max']:
-                        self.usr_vals[f+item].returnPressed.connect(
-                            lambda: self.update_usr_params(self.usr_vals)
-                        )
-                    # add voigt widgets
-                    for p in [c, a, s, f]:
-                        sublayout = QHBoxLayout()
-                        sublayout.addWidget(labels[p])
-                        sublayout.addWidget(self.usr_vals[p+'_val'])
-                        sublayout.addWidget(self.usr_vals[p+'_min'])
-                        sublayout.addWidget(self.usr_vals[p+'_max'])
-                        self.voi_layout.addLayout(sublayout)
-            else:
-                # line model
-                ## slope
-                slope = comp.prefix + 'slope'
-                slopeval = self.data.iloc[:,self.ycol_idx].mean()
-                self.params.add(slope, slopeval, True)
-                self.usr_vals[slope+'_val'] = QLineEdit()
-                self.usr_vals[slope+'_min'] = QLineEdit()
-                self.usr_vals[slope+'_max'] = QLineEdit()
-                self.usr_vals[slope+'_val'].setPlaceholderText('val')
-                self.usr_vals[slope+'_min'].setPlaceholderText('min')
-                self.usr_vals[slope+'_max'].setPlaceholderText('max')
-                labels[slope] = QLabel()
-                labels[slope].setText(slope)
-                ## intercept
-                intc = comp.prefix + 'int'
-                intcval = self.data.iloc[:,self.ycol_idx].mean()
-                self.params.add(comp.prefix + 'intercept', intcval, True)
-                self.usr_vals[intc+'_val'] = QLineEdit()
-                self.usr_vals[intc+'_min'] = QLineEdit()
-                self.usr_vals[intc+'_max'] = QLineEdit()
-                self.usr_vals[intc+'_val'].setPlaceholderText('val')
-                self.usr_vals[intc+'_min'].setPlaceholderText('min')
-                self.usr_vals[intc+'_max'].setPlaceholderText('max')
-                labels[intc] = QLabel()
-                labels[intc].setText(intc)
-                for item in ['_val', '_min', '_max']:
-                    self.usr_vals[slope+item].returnPressed.connect(
-                        lambda: self.update_usr_params(self.usr_vals)
-                    )
-                    self.usr_vals[intc+item].returnPressed.connect(
-                        lambda: self.update_usr_params(self.usr_vals)
-                    )
-                # add line widgets
-                for p in [slope, intc]:
-                    sublayout = QHBoxLayout()
-                    sublayout.addWidget(labels[p])
-                    sublayout.addWidget(self.usr_vals[p+'_val'])
-                    sublayout.addWidget(self.usr_vals[p+'_min'])
-                    sublayout.addWidget(self.usr_vals[p+'_max'])
+                sublayout = QHBoxLayout()
+                sublayout.addWidget(labels[param_name])
+                for key in self.usr_entry_widgets:
+                    sublayout.addWidget(self.usr_entry_widgets[key][param_name])
+                if param_name.find('gau') != -1:
+                    self.gau_layout.addLayout(sublayout)
+                if param_name.find('lor') != -1:
+                    self.lor_layout.addLayout(sublayout)
+                if param_name.find('voi') != -1:
+                    self.voi_layout.addLayout(sublayout)
+                if param_name.find('lin') != -1:
                     self.lin_layout.addLayout(sublayout)
-                    # self.sublayout.setAlignment(Qt.AlignLeft)
 
-        # # Resize all of the LineEntry widgets
-        # for label, widget in self.usr_vals.items():
-        #     widget.setMaximumWidth(100)
+        # Resize all of the LineEntry widgets
+        for key in self.usr_entry_widgets:
+            for param, widget in self.usr_entry_widgets[key].items():
+                widget.setMaximumWidth(125)
+
+        if self.result is not None:
+            self.set_params()
+            self.update_param_widgets()
+
+    def update_param_widgets(self):
+        rnd = 3
+        # the 'value' placeholder text is the result for that param
+        # taken from self.result
+        # the 'min' and 'max' text is from either the self.guesses
+        # or from self.usr_vals
+        for param in self.params:
+            if param in self.result.best_values:
+                self.usr_entry_widgets['value'][param].setPlaceholderText(
+                    str(round(self.result.best_values[param], rnd))
+                )
+                self.usr_entry_widgets['min'][param].setPlaceholderText(
+                    str(round(self.params[param].min, rnd))
+                )
+                self.usr_entry_widgets['max'][param].setPlaceholderText(
+                    str(round(self.params[param].max, rnd))
+                )
 
     def guess_params(self):
-        self.guesses = {}
         for comp in self.model.components:
             if comp.prefix.find('gau') != -1 or \
                     comp.prefix.find('lor') != -1 or \
                     comp.prefix.find('voi') != -1:
 
+                # need to define explicitly to make proper guesses
                 c = comp.prefix + 'center'
                 a = comp.prefix + 'amplitude'
                 s = comp.prefix + 'sigma'
+                f = comp.prefix + 'fraction'
 
-                self.guesses[c] = {
-                    'val': self.data.iloc[:,self.xcol_idx].mean(),
-                    'min': self.data.iloc[:,self.xcol_idx].min(),
-                    'max': self.data.iloc[:,self.xcol_idx].max()
-                }
-                self.guesses[a] = {
-                    'val': self.data.iloc[:,self.ycol_idx].mean(),
-                    'min': self.data.iloc[:,self.ycol_idx].min(),
-                    'max': self.data.iloc[:,self.ycol_idx].max()
-                }
-                self.guesses[s] = {
-                    'val':  self.data.iloc[:,self.xcol_idx].std(),
-                    'min':  0,
-                    'max':  np.ptp(self.data.iloc[:,self.xcol_idx].array)
-                }
+                self.guesses['value'][c] = \
+                        self.data.iloc[:,self.xcol_idx].mean()
+                self.guesses['value'][a] = \
+                        self.data.iloc[:,self.ycol_idx].mean()
+                self.guesses['value'][s] = \
+                        self.data.iloc[:,self.xcol_idx].std()
+                self.guesses['min'][c] = \
+                        self.data.iloc[:,self.xcol_idx].min()
+                self.guesses['min'][a] = \
+                        self.data.iloc[:,self.ycol_idx].min()
+                self.guesses['min'][s] = 0
+                self.guesses['max'][c] = \
+                        self.data.iloc[:,self.xcol_idx].max()
+                self.guesses['max'][a] = \
+                        self.data.iloc[:,self.ycol_idx].max()
+                self.guesses['max'][s] = \
+                    np.ptp(self.data.iloc[:,self.xcol_idx].array)
 
                 if comp.prefix.find('voi') != -1:
-                    f = comp.prefix + 'fraction'
-                    self.guesses[f] = {
-                        'val': 0.5,
-                        'min': 0,
-                        'max': 1
-                    }
+                    self.guesses['value'][f] = 0.5
+                    self.guesses['min'][f] = 0
+                    self.guesses['max'][f] = 1
             else:
                 slope = comp.prefix + 'slope'
                 intc = comp.prefix + 'intercept'
-                self.guesses[slope] = {
-                    'val': self.data.iloc[:,self.ycol_idx].mean(),
-                    'min': None,
-                    'max': None
-                }
-                self.guesses[intc] = {
-                    'val': self.data.iloc[:,self.ycol_idx].mean(),
-                    'min': None,
-                    'max': None
-                }
+                for p in [slope, intc]:
+                    self.guesses['value'][p] = \
+                        self.data.iloc[:,self.ycol_idx].mean()
+                    self.guesses['min'][p] = None
+                    self.guesses['max'][p] = None
 
-        for param, vals in self.guesses.items():
+    def update_usr_vals(self, entry):
+        # get text input from each usr_entry_widget
+        for val_type, param_dict in self.usr_entry_widgets.items():
+            for param, param_widget in param_dict.items():
+                try:
+                    self.usr_vals[val_type][param] = \
+                        float(param_widget.text())
+                except:
+                    pass
+
+    def set_params(self):
+        self.params = Parameters()
+        self.guess_params()
+        self.update_usr_vals(self.usr_entry_widgets)
+        vals = {}
+
+        # fill params with any user-entered values
+        # fill in blanks with guesses
+        for param_name in self.model.param_names:
+            for val_type in ['value', 'min', 'max']:
+                if param_name in self.usr_vals[val_type]:
+                    vals[val_type] = self.usr_vals[val_type][param_name]
+                    # print('param: ' + param_name + ', type: ' +\
+                    #         val_type + ', set_by: user')
+                        
+                else:
+                    vals[val_type] = self.guesses[val_type][param_name]
+                    # print('param: ' + param_name + ', type: ' +\
+                    #         val_type + ', set_by: guess')
             self.params.add(
-                name=param, value=vals['val'],
-                vary=True, min=vals['min'], max=vals['max']
+                name=param_name, value=vals['value'], vary=True,
+                min=vals['min'], max=vals['max']
             )
-        print(self.params)
 
+    def set_xy_range(self):
+        self.x = self.data.iloc[:,self.xcol_idx]
+        self.y = self.data.iloc[:,self.ycol_idx]
+        self.xmin, self.xmax = self.ax.get_xlim()
+        range_bool = (self.x >= self.xmin) & (self.x <= self.xmax)
+        self.x = self.x[range_bool].values
+        self.y = self.y[range_bool].values
 
-    def update_usr_params(self, entry):
-        print('\nUpdated parameters:')
-        for param, entry_widget in self.usr_vals.items():
-            try:
-                self.params[param].value = float(entry_widget.text())
-            except:
-                pass
-            print(param + ' (after): ' + str(self.params[param].value))
-        self.fit()
+    def reset_xy_range(self):
+        self.xmin = np.min(self.x)
+        self.xmax = np.max(self.x)
 
     def fit(self):
-        self.init_model()
-        self.init_params()
+        self.set_xy_range()
+        self.set_params()
         self.result = self.model.fit(
-            data=self.data.iloc[:,self.ycol_idx],
-            params=self.params,
-            x=self.data.iloc[:,self.xcol_idx]
+            data=self.y, params=self.params, x=self.x,
+            method='least_squares'
         )
-        print(self.result.fit_report())
+        self.tab3_widget.clear()
+        self.tab3_widget.insertPlainText(self.result.fit_report())
         self.plot()
+        # overwrite widgets to clear input (not ideal method..)
+        self.init_param_widgets()
+        # update widgets with new placeholder text
+        self.update_param_widgets()
 
     def xset_click(self):
         try:
@@ -529,8 +520,11 @@ class App(QMainWindow):
             self.statusBar.showMessage(idx_error_msg, msg_length)
             return
         self.xcol_idx = idx
-        self.init_params()
         self.result = None
+        self.x = self.data.iloc[:,self.xcol_idx]
+        self.y = self.data.iloc[:,self.ycol_idx]
+        self.xmin = np.min(self.x)
+        self.xmax = np.max(self.x)
         self.plot()
         self.statusBar.showMessage(
             'ColumnIndex(X) = ' + str(idx), msg_length
@@ -543,8 +537,11 @@ class App(QMainWindow):
             self.statusBar.showMessage(idx_error_msg, msg_length)
             return
         self.ycol_idx = idx
-        self.init_params()
         self.result = None
+        self.x = self.data.iloc[:,self.xcol_idx]
+        self.y = self.data.iloc[:,self.ycol_idx]
+        self.xmin = np.min(self.x)
+        self.xmax = np.max(self.x)
         self.plot()
         self.statusBar.showMessage(
             'ColumnIndex(Y) = ' + str(idx), msg_length
@@ -555,7 +552,6 @@ class App(QMainWindow):
 
     def get_data(self):
         # reset column indices
-        # !!! need to clear the boxes as well...
         self.xcol_idx = 0
         self.ycol_idx = 1
         # open file dialog
@@ -578,6 +574,11 @@ class App(QMainWindow):
         self.table_model = PandasModel(self.data)
         self.tab2.setModel(self.table_model)
         self.tab2.resizeColumnsToContents()
+        # clear any previous fit result
+        self.result = None
+        # reset xlim
+        self.xmin = self.data.iloc[:,self.xcol_idx].min()
+        self.xmax = self.data.iloc[:,self.xcol_idx].max()
         self.plot()
         self.statusBar.showMessage(
             'Import finished.', msg_length
@@ -585,27 +586,29 @@ class App(QMainWindow):
 
 
     def plot(self):
-        x = self.data.iloc[:,self.xcol_idx].values
-        y = self.data.iloc[:,self.ycol_idx].values
         self.tab1.figure.clear()
-        ax = self.tab1.figure.add_subplot(111, label=self.file_name)
-        ax.scatter(
-            x, y, s=200, c='None',
-            edgecolors='purple', linewidth=3
+        self.ax = self.tab1.figure.add_subplot(111, label=self.file_name)
+        self.ax.scatter(
+            self.x, self.y, s=200, c='None',
+            edgecolors='black', linewidth=2,
+            label='data'
         )
         if self.result != None:
-            yfit = self.result.best_fit.values
-            ax.plot(x, yfit, c='r')
-            cmap = cm.get_cmap('Dark2')
+            yfit = self.result.best_fit
+            self.ax.plot(self.x, yfit, c='r', linewidth=2.5)
+            cmap = cm.get_cmap('gnuplot')
             components = self.result.eval_components()
             for i, comp in enumerate(components):
-                ax.plot(
-                    x, components[comp],
-                    linewidth=2, linestyle='--',
-                    c=cmap(i/len(components))
+                self.ax.plot(
+                    self.x, components[comp],
+                    linewidth=2.5, linestyle='--',
+                    c=cmap(i/len(components)),
+                    label=comp[:comp.find('_')]
                 )
-        ax.set_xlabel(self.data.columns[self.xcol_idx], labelpad=15)
-        ax.set_ylabel(self.data.columns[self.ycol_idx], labelpad=15)
+        self.ax.set_xlabel(self.data.columns[self.xcol_idx], labelpad=15)
+        self.ax.set_ylabel(self.data.columns[self.ycol_idx], labelpad=15)
+        self.ax.set_xlim([self.xmin, self.xmax])
+        self.ax.legend()
         self.tab1.figure.subplots_adjust(bottom=0.15, left=0.06, right=0.94)
         self.tab1.canvas.draw()
 
@@ -620,7 +623,6 @@ class App(QMainWindow):
                     self.clear_layout(item.layout())
                 layout.removeItem(item)
 
-    @pyqtSlot()
     def increment(self, val, add):
         if add:
             if val == 'gau':
@@ -651,7 +653,6 @@ class App(QMainWindow):
         if self.nlin < 1:
             self.nlin = 1
         
-
 class PandasModel(QAbstractTableModel): 
     def __init__(self, df = pd.DataFrame(), parent=None): 
         QAbstractTableModel.__init__(self, parent=parent)
