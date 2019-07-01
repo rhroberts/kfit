@@ -12,6 +12,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from matplotlib.backends.backend_qt5agg import FigureCanvas, \
     NavigationToolbar2QT as NavigationToolbar
+from matplotlib.widgets import Cursor
 
 idx_error_msg = "Error: Can't convert index to integer!"
 msg_length = 2000
@@ -33,6 +34,7 @@ class App(QMainWindow):
         self.nlin = 1
         self.model = None
         self.result = None
+        self.edit_mode = False
         # empty Parameters to hold parameter guesses/constraints
         self.params = Parameters()
         self.guesses = {
@@ -191,9 +193,17 @@ class App(QMainWindow):
         self.tab1.canvas = FigureCanvas(self.tab1.figure)
         self.tab1.canvas.setMinimumHeight(800)
         self.tab1.toolbar =  NavigationToolbar(self.tab1.canvas, self)
+        # "click-to-set" button
+        self.edit_button = QPushButton()
+        self.edit_button.setIcon(QIcon.fromTheme('stock_edit'))
+        self.edit_button.setMaximumWidth(50)
+        self.edit_button.setCheckable(True)
+        self.edit_button.clicked.connect(self.toggle_edit_mode)
+        self.edit_button.setStyleSheet('background-color: white')
         # need to see if the below setting looks ok on
         # lower res displays
         self.tab1.toolbar.setIconSize(QSize(36,36))
+        self.tab1.toolbar.addWidget(self.edit_button)
         # self.tab1.toolbar.setAlignment(Qt.AlignCenter)
         graph_layout = QVBoxLayout()
         graph_layout.addWidget(self.tab1.toolbar)
@@ -348,48 +358,69 @@ class App(QMainWindow):
             self.clear_layout(layout)
 
         for param_name in self.model.param_names:
-                # set param label text
-                labels[param_name] = QLabel()
-                labels[param_name].setText(param_name)
-                # make qlineedit widgets
-                for key in self.usr_entry_widgets:
-                    self.usr_entry_widgets[key][param_name] = QLineEdit()
-                    if param_name in self.usr_vals[key]:
-                        self.usr_entry_widgets[key][param_name]\
-                            .setPlaceholderText(
-                                str(round(self.usr_vals[key][param_name], rnd))
-                            )
-                    else:
-                        self.usr_entry_widgets[key][param_name]\
-                            .setPlaceholderText(key)
-                    # set up connections
-                    # connect() expects a callable func, hence the lambda
-                    self.usr_entry_widgets[key][param_name].returnPressed.connect(
-                        lambda: self.update_usr_vals(self.usr_entry_widgets)
-                    )
+            # set param label text
+            labels[param_name] = QLabel()
+            labels[param_name].setText(param_name)
 
-                # add widgets to respective layouts
-                sublayout = QHBoxLayout()
-                sublayout.addWidget(labels[param_name])
-                for key in self.usr_entry_widgets:
-                    sublayout.addWidget(self.usr_entry_widgets[key][param_name])
-                if param_name.find('gau') != -1:
-                    self.gau_layout.addLayout(sublayout)
-                if param_name.find('lor') != -1:
-                    self.lor_layout.addLayout(sublayout)
-                if param_name.find('voi') != -1:
-                    self.voi_layout.addLayout(sublayout)
-                if param_name.find('lin') != -1:
-                    self.lin_layout.addLayout(sublayout)
+            # make qlineedit widgets
+            for key in self.usr_entry_widgets:
+                self.usr_entry_widgets[key][param_name] = QLineEdit()
+                if param_name in self.usr_vals[key]:
+                    self.usr_entry_widgets[key][param_name]\
+                        .setPlaceholderText(
+                            str(round(self.usr_vals[key][param_name], rnd))
+                        )
+                else:
+                    self.usr_entry_widgets[key][param_name]\
+                        .setPlaceholderText(key)
+                # set up connections
+                # connect() expects a callable func, hence the lambda
+                # test_set only seems to work for the last param...
+                # I see.. these just overwrite themselves. do they?
+                self.usr_entry_widgets[key][param_name].returnPressed.connect(
+                    lambda: self.test_set(key, param_name)
+                )
+                self.usr_entry_widgets[key][param_name].returnPressed.connect(
+                    lambda: self.update_usr_vals(self.usr_entry_widgets)
+                )
+
+            # add widgets to respective layouts
+            sublayout1 = QVBoxLayout()
+            sublayout2 = QHBoxLayout()
+            sublayout1.addWidget(labels[param_name])
+            for key in self.usr_entry_widgets:
+                sublayout2.addWidget(
+                    self.usr_entry_widgets[key][param_name]
+                )
+            if param_name.find('gau') != -1:
+                self.gau_layout.addLayout(sublayout1)
+                self.gau_layout.addLayout(sublayout2)
+            if param_name.find('lor') != -1:
+                self.lor_layout.addLayout(sublayout1)
+                self.lor_layout.addLayout(sublayout2)
+            if param_name.find('voi') != -1:
+                self.voi_layout.addLayout(sublayout1)
+                self.voi_layout.addLayout(sublayout2)
+            if param_name.find('lin') != -1:
+                self.lin_layout.addLayout(sublayout1)
+                self.lin_layout.addLayout(sublayout2)
 
         # Resize all of the LineEntry widgets
         for key in self.usr_entry_widgets:
             for param, widget in self.usr_entry_widgets[key].items():
-                widget.setMaximumWidth(125)
+                widget.setMaximumWidth(150)
 
         if self.result is not None:
             self.set_params()
             self.update_param_widgets()
+
+    def test_set(self, vt, pm):
+        if self.edit_mode is True:
+            self.usr_entry_widgets[vt][pm].setText(
+                str(round(self.y_edit, 3))
+            )
+            print('Set ' + pm + '(' + vt + \
+                    ') to: ' + str(self.y_edit))
 
     def update_param_widgets(self):
         rnd = 3
@@ -427,17 +458,12 @@ class App(QMainWindow):
                         self.data.iloc[:,self.ycol_idx].mean()
                 self.guesses['value'][s] = \
                         self.data.iloc[:,self.xcol_idx].std()
-                self.guesses['min'][c] = \
-                        self.data.iloc[:,self.xcol_idx].min()
-                self.guesses['min'][a] = \
-                        self.data.iloc[:,self.ycol_idx].min()
+                self.guesses['min'][c] = None
+                self.guesses['min'][a] = 0
                 self.guesses['min'][s] = 0
-                self.guesses['max'][c] = \
-                        self.data.iloc[:,self.xcol_idx].max()
-                self.guesses['max'][a] = \
-                        self.data.iloc[:,self.ycol_idx].max()
-                self.guesses['max'][s] = \
-                    np.ptp(self.data.iloc[:,self.xcol_idx].array)
+                self.guesses['max'][c] = None
+                self.guesses['max'][a] = None
+                self.guesses['max'][s] = None
 
                 if comp.prefix.find('voi') != -1:
                     self.guesses['value'][f] = 0.5
@@ -499,6 +525,8 @@ class App(QMainWindow):
         self.xmax = np.max(self.x)
 
     def fit(self):
+        self.edit_button.setChecked(False)
+        self.edit_unchecked_attr()
         self.set_xy_range()
         self.set_params()
         self.result = self.model.fit(
@@ -546,11 +574,39 @@ class App(QMainWindow):
         self.statusBar.showMessage(
             'ColumnIndex(Y) = ' + str(idx), msg_length
         )
+    
+    def toggle_edit_mode(self):
+        if self.edit_button.isChecked():
+            self.edit_mode = True
+            self.edit_checked_attr()
+        else:
+            self.edit_mode = False
+            self.edit_unchecked_attr()
+
+    def get_coord_click(self, event):
+        self.x_edit, self.y_edit = event.xdata, event.ydata
+        print([self.x_edit, self.y_edit])
+
+    def edit_checked_attr(self):
+        self.mpl_cursor = Cursor(
+            self.ax, lw=1, c='red', linestyle='--'
+        )
+        self.edit_button.setStyleSheet('background-color: red')
+        self.cid = self.tab1.canvas.mpl_connect(
+            'button_press_event', self.get_coord_click
+        )
+
+    def edit_unchecked_attr(self):
+        self.mpl_cursor = None
+        self.tab1.canvas.mpl_disconnect(self.cid)
+        self.edit_button.setStyleSheet('background-color: white')
 
     def close_app(self):
         sys.exit()
 
     def get_data(self):
+        self.edit_button.setChecked(False)
+        self.edit_unchecked_attr()
         # reset column indices
         self.xcol_idx = 0
         self.ycol_idx = 1
@@ -576,7 +632,9 @@ class App(QMainWindow):
         self.tab2.resizeColumnsToContents()
         # clear any previous fit result
         self.result = None
-        # reset xlim
+        # reset x, y, and xlim
+        self.x = self.data.iloc[:,self.xcol_idx].values
+        self.y = self.data.iloc[:,self.ycol_idx].values
         self.xmin = self.data.iloc[:,self.xcol_idx].min()
         self.xmax = self.data.iloc[:,self.xcol_idx].max()
         self.plot()
@@ -608,7 +666,7 @@ class App(QMainWindow):
         self.ax.set_xlabel(self.data.columns[self.xcol_idx], labelpad=15)
         self.ax.set_ylabel(self.data.columns[self.ycol_idx], labelpad=15)
         self.ax.set_xlim([self.xmin, self.xmax])
-        self.ax.legend()
+        self.ax.legend(loc='upper right')
         self.tab1.figure.subplots_adjust(bottom=0.15, left=0.06, right=0.94)
         self.tab1.canvas.draw()
 

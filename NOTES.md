@@ -2,6 +2,15 @@
 
 ## Notes
 
+- Getting the balance of good user experience and also good fitting guesses is tough
+    - Don't want to be too restrictive with initial bounds, but it does help in certain easier fitting cases
+    - I think the "click-to-choose" parameter paradigm will be a good way to tackle this
+- Will need to implement QThreads for both fitting and import processes so the GUI doesn't freeze up
+    - this will help:
+        - https://www.learnpyqt.com/courses/concurrent-execution/multithreading-pyqt-applications-qthreadpool/
+    - Still over my head at the moment...
+    - Work on this once the program is decently usable aside from the freezing on long fits
+- Regardless of whether I implement threading, it is probably best I do a better job of isolating the GUI stuff from the actual fitting process
 
 ## TO-DOs
 
