@@ -2,7 +2,7 @@
 
 ## Contributing
 
-- Check out NOTES.md for development notes and outstanding issues
+- Check out [NOTES.md](./Notes.md) for development notes and outstanding issues
 
 ## Installation
 
