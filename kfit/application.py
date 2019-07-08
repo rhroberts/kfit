@@ -48,6 +48,7 @@ class App(QMainWindow):
             'max': {}
         }
         self.usr_entry_widgets = {}
+        self.cid = None
 
         # temporary data 
         x = np.linspace(0,10,500)
