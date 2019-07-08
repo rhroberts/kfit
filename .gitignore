@@ -10,3 +10,4 @@ __pycache__/
 # other
 .superseded/
 scripts/test_env/
+NOTES.html
