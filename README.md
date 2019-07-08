@@ -1,6 +1,6 @@
 # kfit - A simple spectral fitting tool in Python
 
-## Installations
+## Installation
 
 ### Dependencies
 
