@@ -4,7 +4,7 @@
 
 - Getting the balance of good user experience and also good fitting guesses is tough
     - Don't want to be too restrictive with initial bounds, but it does help in certain easier fitting cases
-    - I think the "click-to-choose" parameter paradigm will be a good way to tackle this
+    - I think implementing an "edit mode" will be a good way to tackle this
 - Will need to implement QThreads for both fitting and import processes so the GUI doesn't freeze up
     - this will help:
         - https://www.learnpyqt.com/courses/concurrent-execution/multithreading-pyqt-applications-qthreadpool/
@@ -16,6 +16,9 @@
 
 ### High Priority
 
+- Edit mode is not functional yet
+    - Figure out why doing an edit mode entry always fills the **last** param entry widget, rather than the one that is clicked
+    - In general, need to clean up how edit mode works, it's pretty sloppy
 - Reconcile amp/height, sigma/fwhm
     - would be better if user specifies height and fwhm
 
@@ -26,17 +29,12 @@
 ### Medium Priority
 
 - Need a more robust file import import dialog
-
 - Some sort of progress bar
-
 - Still need to figure of the issue of having to initialize model with something 
     - Don't want to always have to use a line in the model
-
 - Removing user entry from text box doesn't reset value to guess
     - is this resolved?
-
 - Need to show warning when user tries to enter value above/below the parameter bounds
-
 - Continue to clean up messy code
 
 ### Low Priority
@@ -44,10 +42,9 @@
 - Not at all necessary, but would be a good learning experience to rewrite with gtk and compare
 - Would be interesting to have the app "learn" from previous fits
     - this would just be keeping the results, for example, for gau1 and using those in the next fit, even if other models are added
-
 - Would be cool for user to be able to click on the graph to choose param values (e.g. click at peak center to set lor1_center(val,min,max)
-    - not sure how to implement this yet
-
+    - ~~not sure how to implement this yet~~
+    - currently working on an "edit mode" that implements this
 - Think more carefully about when/why things *actually* need to be class attributes of App()
 
 ### Done
@@ -64,13 +61,11 @@
         - Looks much better on my xps13 display, but need to check on a lower res display (might be gigantic)
 - Showing the current values next to the param user inputs will be essential, and will also help me with debugging
     - my solution is to have the current vals be the placeholder text in the "value" box, "max" and "min" show the max and min set in self.params
-
 - Parameter Widgets
     - These should be added by buttons (Gaussians [+], etc..) for each parameter columns
     - Should not erase all widgets and start over when one is added
         - This forgets user input values
         - My solution still rewrites the widgets, but it's working at least
-
 - Connect usr_input with fitting process
     - Placeholder text needs to be updated after user entry
         - When you removes the text they added after updating the params, the default value used in the model is the previous user entry, but the placeholder text show the initial guess by the program
@@ -78,29 +73,22 @@
         - This is because init_params() is called on [+/-] click, which wipes the layout
         - Though to be fair the usr input does remain as placeholder text
     - still some weird stuff like after fitting the value placeholder text doesn't change
-
 - The layout itself should have a fixed height
     - i.e. not eat up space from the plot widget when there are a bunch of params
     - Something should fill this space before the first fit
-
 - And each column should be individually scrollable
-
 - Need a better data structure for usr_entry
     - dealing with val, min, and max
     - solution: nested dict
-
 - Make the param_layout have four columns -- one for each peak types
-
 - Am I using pyqtSlot() correctly?
     - https://stackoverflow.com/questions/39210500/how-do-i-connect-a-pyqt5-slot-to-a-signal-function-in-a-class
     - seems like I can probably delete them all...
         - yup
-
 - Add lineEntry widgets for min() and max() parmeters as well... 
     - Round off the placeholder text in entry widgets
         - done, but should really do something more robust in cases of values on the order of $10^{-6}$ or smaller
             - eh, it's just the placeholder, not the value being used
-
 - Fix the app logic re:
     - When are fit(), update_usr_params(), and guess_params() called
         - Right now it's a clusterfuck and user params get overwritten by guesses when fitting

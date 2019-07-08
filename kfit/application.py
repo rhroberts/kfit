@@ -194,7 +194,7 @@ class App(QMainWindow):
         self.tab1.canvas = FigureCanvas(self.tab1.figure)
         self.tab1.canvas.setMinimumHeight(800)
         self.tab1.toolbar =  NavigationToolbar(self.tab1.canvas, self)
-        # "click-to-set" button
+        # "click-to-set"/edit  button
         self.edit_button = QPushButton()
         self.edit_button.setIcon(QIcon.fromTheme('stock_edit'))
         self.edit_button.setMaximumWidth(50)
@@ -376,10 +376,10 @@ class App(QMainWindow):
                         .setPlaceholderText(key)
                 # set up connections
                 # connect() expects a callable func, hence the lambda
-                # test_set only seems to work for the last param...
-                # I see.. these just overwrite themselves. do they?
+                # edit_mode_set only seems to work for the last param...
+                # I see.. these just overwrite themselves. or do they?
                 self.usr_entry_widgets[key][param_name].returnPressed.connect(
-                    lambda: self.test_set(key, param_name)
+                    lambda: self.edit_mode_set(key, param_name)
                 )
                 self.usr_entry_widgets[key][param_name].returnPressed.connect(
                     lambda: self.update_usr_vals(self.usr_entry_widgets)
@@ -415,12 +415,12 @@ class App(QMainWindow):
             self.set_params()
             self.update_param_widgets()
 
-    def test_set(self, vt, pm):
+    def edit_mode_set(self, value_type, param_name):
         if self.edit_mode is True:
-            self.usr_entry_widgets[vt][pm].setText(
+            self.usr_entry_widgets[value_type][param_name].setText(
                 str(round(self.y_edit, 3))
             )
-            print('Set ' + pm + '(' + vt + \
+            print('Set ' + param_name + '(' + value_type + \
                     ') to: ' + str(self.y_edit))
 
     def update_param_widgets(self):
