@@ -2,9 +2,6 @@
 
 ## Notes
 
-- Getting the balance of good user experience and also good fitting guesses is tough
-    - Don't want to be too restrictive with initial bounds, but it does help in certain easier fitting cases
-    - I think implementing an "edit mode" will be a good way to tackle this
 - Will need to implement QThreads for both fitting and import processes so the GUI doesn't freeze up
     - this will help:
         - https://www.learnpyqt.com/courses/concurrent-execution/multithreading-pyqt-applications-qthreadpool/
@@ -16,20 +13,21 @@
 
 ### High Priority
 
-- Edit mode is not functional yet
-    - Figure out why doing an edit mode entry always fills the **last** param entry widget, rather than the one that is clicked
-    - In general, need to clean up how edit mode works, it's pretty sloppy
+- Implement a tri-state edit_mode button
+    - Behavior should be:
+        1. Edit mode off
+        2. Edit mode on, grab x-value
+        3. Edit mode on, grab y-value
+    - Will need to either make a custom class or mess with the style sheets
+        - the former option would be better
 - Reconcile amp/height, sigma/fwhm
     - would be better if user specifies height and fwhm
-
-- The params widget interface still isn't very user friendly
-    - Why is the box holding the line lineEntry boxes fixed?
-        - or why does it have a min_width and the others don't?
 
 ### Medium Priority
 
 - Need a more robust file import import dialog
 - Some sort of progress bar
+    - this will require threading
 - Still need to figure of the issue of having to initialize model with something 
     - Don't want to always have to use a line in the model
 - Removing user entry from text box doesn't reset value to guess
@@ -42,13 +40,21 @@
 - Not at all necessary, but would be a good learning experience to rewrite with gtk and compare
 - Would be interesting to have the app "learn" from previous fits
     - this would just be keeping the results, for example, for gau1 and using those in the next fit, even if other models are added
-- Would be cool for user to be able to click on the graph to choose param values (e.g. click at peak center to set lor1_center(val,min,max)
-    - ~~not sure how to implement this yet~~
-    - currently working on an "edit mode" that implements this
 - Think more carefully about when/why things *actually* need to be class attributes of App()
 
 ### Done
 
+- The params widget interface still isn't very user friendly
+    - Why is the box holding the line lineEntry boxes fixed?
+        - or why does it have a min_width and the others don't?
+        - Rough fix -- set a max width on the line entry scroll area
+- Edit mode is not functional yet
+    - Figure out why doing an edit mode entry always fills the **last** param entry widget, rather than the one that is clicked
+    - In general, need to clean up how edit mode works, it's pretty sloppy
+    - Resolved -- now edit mode just copies to clipboard
+- Would be cool for user to be able to click on the graph to choose param values (e.g. click at peak center to set lor1_center(val,min,max)
+    - ~~not sure how to implement this yet~~
+    - currently working on an "edit mode" that implements this
 - App crashes when loading new data set *after* fitting initial one
     - fixed
 - Allow user to select fitting range

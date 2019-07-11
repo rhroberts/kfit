@@ -24,8 +24,8 @@ class App(QMainWindow):
         self.title = 'kfit'
         self.left = 400
         self.top = 150
-        self.width = 2400
-        self.height = 1600
+        self.width = 1200
+        self.height = 800
         self.file_name = ''
         self.xcol_idx = 0
         self.ycol_idx = 1
@@ -87,20 +87,20 @@ class App(QMainWindow):
         self.topbar_widget = QWidget()
         # import button
         self.importButton = QPushButton('Import', self)
-        self.importButton.setMaximumWidth(150)
+        self.importButton.setMaximumWidth(100)
         self.importButton.clicked.connect(self.get_data)
         # fit button
         self.fitButton = QPushButton('Fit', self)
-        self.fitButton.setMaximumWidth(150)
+        self.fitButton.setMaximumWidth(100)
         self.fitButton.clicked.connect(self.fit)
         # progress bar
         self.progressBar = QProgressBar()
-        self.progressBar.setMaximumWidth(200)
+        self.progressBar.setMaximumWidth(150)
         self.progressBar.hide()
         # get column header for x
         self.xLabel = QLabel(self)
         self.xLabel.setText('ColumnIndex(X):')
-        self.xLabel.setMaximumWidth(220)
+        self.xLabel.setMaximumWidth(120)
         self.xLabel.setAlignment(Qt.AlignCenter)
         self.xLineEntry = QLineEdit(self)
         self.xLineEntry.setPlaceholderText('0')
@@ -110,7 +110,7 @@ class App(QMainWindow):
         # get column header for y
         self.yLabel = QLabel(self)
         self.yLabel.setText('ColumnIndex(Y):')
-        self.yLabel.setMaximumWidth(220)
+        self.yLabel.setMaximumWidth(120)
         self.yLabel.setAlignment(Qt.AlignVCenter)
         self.yLineEntry = QLineEdit(self)
         self.yLineEntry.setPlaceholderText('1')
@@ -174,6 +174,7 @@ class App(QMainWindow):
         self.lin_scroll.setWidget(self.lin_widget)
         self.lin_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.lin_scroll.setWidgetResizable(True)
+        self.lin_scroll.setMaximumWidth(300)
         self.params_layout.addWidget(self.gau_scroll, 0, 1)
         self.params_layout.addWidget(self.lor_scroll, 0, 2)
         self.params_layout.addWidget(self.voi_scroll, 0, 3)
@@ -191,9 +192,9 @@ class App(QMainWindow):
         # Tab 1 - Graph / Model
         ## Graph
         plt.style.use('fivethirtyeight')
-        self.tab1.figure = Figure(figsize=(8,6), dpi=110)
+        self.tab1.figure = Figure(figsize=(8,6), dpi=60)
         self.tab1.canvas = FigureCanvas(self.tab1.figure)
-        self.tab1.canvas.setMinimumHeight(800)
+        self.tab1.canvas.setMinimumHeight(400)
         self.tab1.toolbar =  NavigationToolbar(self.tab1.canvas, self)
         # "click-to-set"/edit  button
         self.edit_button = QPushButton()
@@ -204,9 +205,12 @@ class App(QMainWindow):
         self.edit_button.setStyleSheet('background-color: white')
         # need to see if the below setting looks ok on
         # lower res displays
-        self.tab1.toolbar.setIconSize(QSize(36,36))
+        self.tab1.toolbar.setIconSize(QSize(18,18))
+        spacer = QWidget()
+        spacer.setFixedWidth(20)
+        self.tab1.toolbar.addWidget(spacer)
         self.tab1.toolbar.addWidget(self.edit_button)
-        # self.tab1.toolbar.setAlignment(Qt.AlignCenter)
+        self.tab1.toolbar.locLabel.setAlignment(Qt.AlignRight | Qt.AlignCenter)
         graph_layout = QVBoxLayout()
         graph_layout.addWidget(self.tab1.toolbar)
         graph_layout.addWidget(self.tab1.canvas)
@@ -639,8 +643,8 @@ class App(QMainWindow):
         self.tab1.figure.clear()
         self.ax = self.tab1.figure.add_subplot(111, label=self.file_name)
         self.ax.scatter(
-            self.x, self.y, s=200, c='None',
-            edgecolors='black', linewidth=2,
+            self.x, self.y, s=100, c='None',
+            edgecolors='black', linewidth=1,
             label='data'
         )
         if self.result != None:
