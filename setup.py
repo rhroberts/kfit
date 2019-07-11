@@ -12,6 +12,7 @@ setup(
             'numpy',
             'matplotlib',
             'lmfit',
-            'PyQt5'
+            'PyQt5',
+            'pyperclip'
     ]
 )

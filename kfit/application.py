@@ -1,5 +1,6 @@
 import sys
 import time
+import pyperclip
 import pandas as pd
 import numpy as np
 from matplotlib.figure import Figure
@@ -376,11 +377,6 @@ class App(QMainWindow):
                         .setPlaceholderText(key)
                 # set up connections
                 # connect() expects a callable func, hence the lambda
-                # edit_mode_set only seems to work for the last param...
-                # I see.. these just overwrite themselves. or do they?
-                self.usr_entry_widgets[key][param_name].returnPressed.connect(
-                    lambda: self.edit_mode_set(key, param_name)
-                )
                 self.usr_entry_widgets[key][param_name].returnPressed.connect(
                     lambda: self.update_usr_vals(self.usr_entry_widgets)
                 )
@@ -415,13 +411,15 @@ class App(QMainWindow):
             self.set_params()
             self.update_param_widgets()
 
-    def edit_mode_set(self, value_type, param_name):
-        if self.edit_mode is True:
-            self.usr_entry_widgets[value_type][param_name].setText(
-                str(round(self.y_edit, 3))
-            )
-            print('Set ' + param_name + '(' + value_type + \
-                    ') to: ' + str(self.y_edit))
+    def update_usr_vals(self, entry):
+        # get text input from each usr_entry_widget
+        for val_type, param_dict in self.usr_entry_widgets.items():
+            for param, param_widget in param_dict.items():
+                try:
+                    self.usr_vals[val_type][param] = \
+                        float(param_widget.text())
+                except:
+                    pass
 
     def update_param_widgets(self):
         rnd = 3
@@ -478,16 +476,6 @@ class App(QMainWindow):
                         self.data.iloc[:,self.ycol_idx].mean()
                     self.guesses['min'][p] = None
                     self.guesses['max'][p] = None
-
-    def update_usr_vals(self, entry):
-        # get text input from each usr_entry_widget
-        for val_type, param_dict in self.usr_entry_widgets.items():
-            for param, param_widget in param_dict.items():
-                try:
-                    self.usr_vals[val_type][param] = \
-                        float(param_widget.text())
-                except:
-                    pass
 
     def set_params(self):
         self.params = Parameters()
@@ -585,8 +573,11 @@ class App(QMainWindow):
             self.edit_unchecked_attr()
 
     def get_coord_click(self, event):
-        self.x_edit, self.y_edit = event.xdata, event.ydata
-        print([self.x_edit, self.y_edit])
+        self.x_edit, self.y_edit = round(event.xdata, 3), round(event.ydata, 3)
+        pyperclip.copy(self.y_edit)
+        self.statusBar.showMessage(
+                'Copied Y=' + str(self.y_edit) + ' to clipboard!', msg_length
+        )
 
     def edit_checked_attr(self):
         self.mpl_cursor = Cursor(
