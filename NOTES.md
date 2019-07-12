@@ -13,6 +13,10 @@
 
 ### High Priority
 
+* I think finishing the below high-priority tasks will get the app to a place where a beta version could be released
+
+- Fit fails due to NaN error after importing new dataset
+- Need a more robust file import import dialog
 - Implement a tri-state edit_mode button
     - Behavior should be:
         1. Edit mode off
@@ -25,7 +29,6 @@
 
 ### Medium Priority
 
-- Need a more robust file import import dialog
 - Some sort of progress bar
     - this will require threading
 - Still need to figure of the issue of having to initialize model with something 
