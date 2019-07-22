@@ -13,18 +13,17 @@
 
 ### High Priority
 
-* I think finishing the below high-priority tasks will get the app to a place where a beta version could be released
+* I think finishing the below high-priority tasks will get the app to a place where it's decently user friendly
 
-- Fit fails due to NaN error after importing new dataset
-- Need a more robust file import import dialog
-- Implement a tri-state edit_mode button
+- [ ] Need a more robust file import import dialog
+- [ ] Implement a tri-state edit_mode button
     - Behavior should be:
         1. Edit mode off
         2. Edit mode on, grab x-value
         3. Edit mode on, grab y-value
-    - Will need to either make a custom class or mess with the style sheets
+    -  Will need to either make a custom class or mess with the style sheets
         - the former option would be better
-- Reconcile amp/height, sigma/fwhm
+- [ ] Reconcile amp/height, sigma/fwhm
     - would be better if user specifies height and fwhm
 
 ### Medium Priority
@@ -47,6 +46,9 @@
 
 ### Done
 
+- [x] Fix the syntax
+- [x] Fit fails due to NaN error after importing new dataset
+    - getting the syntax right fixed this, must have been a typo somewhere
 - The params widget interface still isn't very user friendly
     - Why is the box holding the line lineEntry boxes fixed?
         - or why does it have a min_width and the others don't?

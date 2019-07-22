@@ -1,5 +1,4 @@
 import sys
-import time
 import pyperclip
 import pandas as pd
 import numpy as np
@@ -9,14 +8,20 @@ import matplotlib.cm as cm
 from kfit import models, tools
 from lmfit.model import Parameters
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt, QAbstractTableModel, QModelIndex, QSize, QVariant
+from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
+                             QStatusBar, QHBoxLayout, QApplication,
+                             QPushButton, QProgressBar, QLabel,
+                             QLineEdit, QTabWidget, QGridLayout,
+                             QTableView, QSizePolicy, QScrollArea,
+                             QLayout, QPlainTextEdit, QFileDialog)
 from matplotlib.backends.backend_qt5agg import FigureCanvas, \
     NavigationToolbar2QT as NavigationToolbar
 from matplotlib.widgets import Cursor
 
 idx_error_msg = "Error: Can't convert index to integer!"
 msg_length = 2000
+
 
 class App(QMainWindow):
     def __init__(self):
@@ -51,13 +56,13 @@ class App(QMainWindow):
         self.usr_entry_widgets = {}
         self.cid = None
 
-        # temporary data 
-        x = np.linspace(0,10,500)
+        # temporary data
+        x = np.linspace(0, 10, 500)
         y = models.gauss(x, 0.5, 4, 0.4) + \
-                models.gauss(x, 0.8, 5, 0.2) + \
-                models.gauss(x, 0.4, 6, 0.3) + 0.2
+            models.gauss(x, 0.8, 5, 0.2) + \
+            models.gauss(x, 0.4, 6, 0.3) + 0.2
         # set data
-        self.data = pd.DataFrame([x,y]).T
+        self.data = pd.DataFrame([x, y]).T
         self.data.columns = ['x', 'y']
         self.x = self.data['x']
         self.y = self.data['y']
@@ -76,7 +81,7 @@ class App(QMainWindow):
         self.setStatusBar(self.statusBar)
         self.statusBar.showMessage('Welcome to kfit!', msg_length)
         self.statusBar.setStyleSheet('background-color: white')
-        
+
         # Create the Main Widget and Layout
         self.main_layout = QVBoxLayout()
         self.main_widget = QWidget()
@@ -135,12 +140,12 @@ class App(QMainWindow):
         self.tab1 = QWidget(self)
         self.tab2 = QTableView(self)
         self.tab3 = QWidget(self)
-        self.tabs.addTab(self.tab1,'Graph')
-        self.tabs.addTab(self.tab2,'Data')
-        self.tabs.addTab(self.tab3,'Output')
+        self.tabs.addTab(self.tab1, 'Graph')
+        self.tabs.addTab(self.tab2, 'Data')
+        self.tabs.addTab(self.tab3, 'Output')
 
         # create params widget
-        self.params_widget = QWidget() 
+        self.params_widget = QWidget()
         self.params_layout = QGridLayout()
         self.gau_layout = QVBoxLayout()
         self.gau_widget = QWidget()
@@ -183,19 +188,19 @@ class App(QMainWindow):
 
         # add everything to layout
         self.main_layout.setSpacing(0)
-        self.main_layout.setContentsMargins(0,0,0,0)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.addWidget(self.topbar_widget)
         self.main_layout.addWidget(self.tabs)
         self.main_layout.addWidget(self.params_widget)
         self.main_widget.setLayout(self.main_layout)
 
         # Tab 1 - Graph / Model
-        ## Graph
+        # Graph
         plt.style.use('fivethirtyeight')
-        self.tab1.figure = Figure(figsize=(8,6), dpi=60)
+        self.tab1.figure = Figure(figsize=(8, 6),  dpi=60)
         self.tab1.canvas = FigureCanvas(self.tab1.figure)
         self.tab1.canvas.setMinimumHeight(400)
-        self.tab1.toolbar =  NavigationToolbar(self.tab1.canvas, self)
+        self.tab1.toolbar = NavigationToolbar(self.tab1.canvas, self)
         # "click-to-set"/edit  button
         self.edit_button = QPushButton()
         self.edit_button.setIcon(QIcon.fromTheme('stock_edit'))
@@ -205,7 +210,7 @@ class App(QMainWindow):
         self.edit_button.setStyleSheet('background-color: white')
         # need to see if the below setting looks ok on
         # lower res displays
-        self.tab1.toolbar.setIconSize(QSize(18,18))
+        self.tab1.toolbar.setIconSize(QSize(18, 18))
         spacer = QWidget()
         spacer.setFixedWidth(20)
         self.tab1.toolbar.addWidget(spacer)
@@ -215,7 +220,7 @@ class App(QMainWindow):
         graph_layout.addWidget(self.tab1.toolbar)
         graph_layout.addWidget(self.tab1.canvas)
 
-        ## The "Set Model" layout
+        # The "Set Model" layout
         model_layout = QGridLayout()
         widget_setgau = QWidget()
         layout_setgau = QHBoxLayout()
@@ -238,7 +243,7 @@ class App(QMainWindow):
         model_layout.addWidget(widget_setvoi, 0, 2)
         model_layout.addWidget(widget_setlin, 0, 3)
 
-        ## specify number of gaussian curves
+        # specify number of gaussian curves
         gauss_label = QLabel(self)
         gauss_label.setText('Gaussians')
         gauss_label.setAlignment(Qt.AlignVCenter)
@@ -257,7 +262,7 @@ class App(QMainWindow):
         layout_setgau.addWidget(gauss_label)
         layout_setgau.addWidget(gauss_button_add)
         layout_setgau.addWidget(gauss_button_sub)
-        ## specify number of lorentzian curves
+        # specify number of lorentzian curves
         lorentz_label = QLabel(self)
         lorentz_label.setText('Lorentzians')
         lorentz_label.setAlignment(Qt.AlignVCenter)
@@ -276,7 +281,7 @@ class App(QMainWindow):
         layout_setlor.addWidget(lorentz_label)
         layout_setlor.addWidget(lorentz_button_add)
         layout_setlor.addWidget(lorentz_button_sub)
-        ## specify number of voigt curves
+        # specify number of voigt curves
         voigt_label = QLabel(self)
         voigt_label.setText('Pseudo-Voigts')
         voigt_label.setAlignment(Qt.AlignVCenter)
@@ -295,7 +300,7 @@ class App(QMainWindow):
         layout_setvoi.addWidget(voigt_label)
         layout_setvoi.addWidget(voigt_button_add)
         layout_setvoi.addWidget(voigt_button_sub)
-        ## specify number of lines
+        # specify number of lines
         line_label = QLabel(self)
         line_label.setText('Lines:')
         line_label.setAlignment(Qt.AlignVCenter)
@@ -337,15 +342,15 @@ class App(QMainWindow):
         # increment() ensures nlin >= 1
         self.model = models.line_mod(self.nlin)
         if self.ngau != 0:
-            self.model += models.gauss_mod(self.ngau) 
+            self.model += models.gauss_mod(self.ngau)
         if self.nlor != 0:
             self.model += models.lor_mod(self.nlor)
         if self.nvoi != 0:
             self.model += models.voigt_mod(self.nvoi)
         self.statusBar.showMessage(
-                "Model updated: " + \
+                "Model updated: " +
                 str([self.ngau, self.nlor, self.nvoi, self.nlin]),
-            msg_length
+                msg_length
         )
 
     def init_param_widgets(self):
@@ -422,7 +427,7 @@ class App(QMainWindow):
                 try:
                     self.usr_vals[val_type][param] = \
                         float(param_widget.text())
-                except:
+                except Exception:
                     pass
 
     def update_param_widgets(self):
@@ -456,11 +461,11 @@ class App(QMainWindow):
                 f = comp.prefix + 'fraction'
 
                 self.guesses['value'][c] = \
-                        self.data.iloc[:,self.xcol_idx].mean()
+                    self.data.iloc[:, self.xcol_idx].mean()
                 self.guesses['value'][a] = \
-                        self.data.iloc[:,self.ycol_idx].mean()
+                    self.data.iloc[:, self.ycol_idx].mean()
                 self.guesses['value'][s] = \
-                        self.data.iloc[:,self.xcol_idx].std()
+                    self.data.iloc[:, self.xcol_idx].std()
                 self.guesses['min'][c] = None
                 self.guesses['min'][a] = 0
                 self.guesses['min'][s] = 0
@@ -477,7 +482,7 @@ class App(QMainWindow):
                 intc = comp.prefix + 'intercept'
                 for p in [slope, intc]:
                     self.guesses['value'][p] = \
-                        self.data.iloc[:,self.ycol_idx].mean()
+                        self.data.iloc[:, self.ycol_idx].mean()
                     self.guesses['min'][p] = None
                     self.guesses['max'][p] = None
 
@@ -495,7 +500,6 @@ class App(QMainWindow):
                     vals[val_type] = self.usr_vals[val_type][param_name]
                     # print('param: ' + param_name + ', type: ' +\
                     #         val_type + ', set_by: user')
-                        
                 else:
                     vals[val_type] = self.guesses[val_type][param_name]
                     # print('param: ' + param_name + ', type: ' +\
@@ -506,8 +510,8 @@ class App(QMainWindow):
             )
 
     def set_xy_range(self):
-        self.x = self.data.iloc[:,self.xcol_idx]
-        self.y = self.data.iloc[:,self.ycol_idx]
+        self.x = self.data.iloc[:, self.xcol_idx]
+        self.y = self.data.iloc[:, self.ycol_idx]
         self.xmin, self.xmax = self.ax.get_xlim()
         range_bool = (self.x >= self.xmin) & (self.x <= self.xmax)
         self.x = self.x[range_bool].values
@@ -537,13 +541,13 @@ class App(QMainWindow):
     def xset_click(self):
         try:
             idx = int(self.xLineEntry.text())
-        except:
+        except Exception:
             self.statusBar.showMessage(idx_error_msg, msg_length)
             return
         self.xcol_idx = idx
         self.result = None
-        self.x = self.data.iloc[:,self.xcol_idx]
-        self.y = self.data.iloc[:,self.ycol_idx]
+        self.x = self.data.iloc[:, self.xcol_idx]
+        self.y = self.data.iloc[:, self.ycol_idx]
         self.xmin = np.min(self.x)
         self.xmax = np.max(self.x)
         self.plot()
@@ -554,20 +558,20 @@ class App(QMainWindow):
     def yset_click(self):
         try:
             idx = int(self.yLineEntry.text())
-        except:
+        except Exception:
             self.statusBar.showMessage(idx_error_msg, msg_length)
             return
         self.ycol_idx = idx
         self.result = None
-        self.x = self.data.iloc[:,self.xcol_idx]
-        self.y = self.data.iloc[:,self.ycol_idx]
+        self.x = self.data.iloc[:, self.xcol_idx]
+        self.y = self.data.iloc[:, self.ycol_idx]
         self.xmin = np.min(self.x)
         self.xmax = np.max(self.x)
         self.plot()
         self.statusBar.showMessage(
             'ColumnIndex(Y) = ' + str(idx), msg_length
         )
-    
+
     def toggle_edit_mode(self):
         if self.edit_button.isChecked():
             self.edit_mode = True
@@ -607,7 +611,7 @@ class App(QMainWindow):
         self.xcol_idx = 0
         self.ycol_idx = 1
         # open file dialog
-        self.file_name,_ = QFileDialog.getOpenFileName(
+        self.file_name, _ = QFileDialog.getOpenFileName(
             self, 'Open File', '', 'CSV files (*.csv)'
         )
         if self.file_name != '':
@@ -629,15 +633,14 @@ class App(QMainWindow):
         # clear any previous fit result
         self.result = None
         # reset x, y, and xlim
-        self.x = self.data.iloc[:,self.xcol_idx].values
-        self.y = self.data.iloc[:,self.ycol_idx].values
-        self.xmin = self.data.iloc[:,self.xcol_idx].min()
-        self.xmax = self.data.iloc[:,self.xcol_idx].max()
+        self.x = self.data.iloc[:, self.xcol_idx].values
+        self.y = self.data.iloc[:, self.ycol_idx].values
+        self.xmin = self.data.iloc[:, self.xcol_idx].min()
+        self.xmax = self.data.iloc[:, self.xcol_idx].max()
         self.plot()
         self.statusBar.showMessage(
             'Import finished.', msg_length
         )
-
 
     def plot(self):
         self.tab1.figure.clear()
@@ -647,7 +650,7 @@ class App(QMainWindow):
             edgecolors='black', linewidth=1,
             label='data'
         )
-        if self.result != None:
+        if self.result is not None:
             yfit = self.result.best_fit
             self.ax.plot(self.x, yfit, c='r', linewidth=2.5)
             cmap = cm.get_cmap('gnuplot')
@@ -673,7 +676,7 @@ class App(QMainWindow):
                 widget = item.widget()
                 if widget:
                     widget.deleteLater()
-                else :
+                else:
                     self.clear_layout(item.layout())
                 layout.removeItem(item)
 
@@ -706,9 +709,10 @@ class App(QMainWindow):
             self.nvoi = 0
         if self.nlin < 1:
             self.nlin = 1
-        
-class PandasModel(QAbstractTableModel): 
-    def __init__(self, df = pd.DataFrame(), parent=None): 
+
+
+class PandasModel(QAbstractTableModel):
+    def __init__(self, df=pd.DataFrame(), parent=None):
         QAbstractTableModel.__init__(self, parent=parent)
         self._df = df
 
@@ -751,25 +755,28 @@ class PandasModel(QAbstractTableModel):
         self._df.set_value(row, col, value)
         return True
 
-    def rowCount(self, parent=QModelIndex()): 
+    def rowCount(self, parent=QModelIndex()):
         return len(self._df.index)
 
-    def columnCount(self, parent=QModelIndex()): 
+    def columnCount(self, parent=QModelIndex()):
         return len(self._df.columns)
 
     def sort(self, column, order):
         colname = self._df.columns.tolist()[column]
         self.layoutAboutToBeChanged.emit()
-        self._df.sort_values(colname, ascending= order == Qt.AscendingOrder, inplace=True)
+        self._df.sort_values(
+            colname, ascending=order == Qt.AscendingOrder, inplace=True
+        )
         self._df.reset_index(inplace=True, drop=True)
         self.layoutChanged.emit()
 
 
 def run():
     app = QApplication(sys.argv)
+    # don't understand the following line, but app won't run without it
     GUI = App()
     sys.exit(app.exec_())
 
-    
+
 if __name__ == '__main__':
     run()
