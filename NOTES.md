@@ -3,10 +3,9 @@
 ## Notes
 
 - Will need to implement QThreads for both fitting and import processes so the GUI doesn't freeze up
-    - this will help:
+    - Ex:
         - https://www.learnpyqt.com/courses/concurrent-execution/multithreading-pyqt-applications-qthreadpool/
-    - Still over my head at the moment...
-    - Work on this once the program is decently usable aside from the freezing on long fits
+    - Will work on this once the program is decently usable aside from the freezing on long fits
 - Regardless of whether I implement threading, it is probably best I do a better job of isolating the GUI stuff from the actual fitting process
 
 ## TO-DOs
@@ -24,7 +23,8 @@
     -  Will need to either make a custom class or mess with the style sheets
         - the former option would be better
 - [ ] Reconcile amp/height, sigma/fwhm
-    - would be better if user specifies height and fwhm
+    - [ ] would be better if user specifies height and fwhm
+- [ ] Add button(s) to save fit details and results
 
 ### Medium Priority
 

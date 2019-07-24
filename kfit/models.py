@@ -14,6 +14,7 @@ def gauss(x, amp, center, sigma):
     f = (1/(sigma*np.sqrt(2*np.pi))) * np.exp(-0.5*((x-center)/sigma)**2)
     return f
 
+
 def gauss_mod(N):
     '''
         Returns a model consisting of N gaussian curves
@@ -26,6 +27,7 @@ def gauss_mod(N):
             prefix='gau' + str(i+2) + '_'
         )
     return model
+
 
 def lor_mod(N):
     '''
@@ -40,6 +42,7 @@ def lor_mod(N):
         )
     return model
 
+
 def voigt_mod(N):
     '''
         Returns a model consisting of N pseudo-voigt curves
@@ -53,9 +56,10 @@ def voigt_mod(N):
         )
     return model
 
+
 def line_mod(N):
     '''
-        Returns a model consisting of N lines 
+        Returns a model consisting of N lines
     '''
     # initialize model
     model = LinearModel(prefix='lin1_')
@@ -65,3 +69,27 @@ def line_mod(N):
             prefix='lin' + str(i+2) + '_'
         )
     return model
+
+
+def fwhm_lor(sigma):
+    return(2*sigma)  # lorentzian
+
+
+def height_lor(amp, sigma):
+    return(amp*sigma/np.pi)  # lorentzian
+
+
+def fwhm_gau(sigma):
+    return(2*sigma*np.sqrt(2*np.log(2)))  # gaussian
+
+
+def height_gau(amp, sigma):
+    return(amp/(sigma*np.sqrt(2*np.pi)))  # gaussian
+
+
+def fwhm_voi(sigma):
+    return(2*sigma)
+
+
+def height_voi(amp, sigma, frac):
+
