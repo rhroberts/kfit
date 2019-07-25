@@ -1,0 +1,5 @@
+
+~~~PYTHON OUTPUT~~~
+application.py
+
+Adding a QLayout to a QSplitter is not supported.

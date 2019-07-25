@@ -14,7 +14,8 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
                              QPushButton, QProgressBar, QLabel,
                              QLineEdit, QTabWidget, QGridLayout,
                              QTableView, QSizePolicy, QScrollArea,
-                             QLayout, QPlainTextEdit, QFileDialog)
+                             QLayout, QPlainTextEdit, QFileDialog,
+                             QSplitter)
 from matplotlib.backends.backend_qt5agg import FigureCanvas, \
     NavigationToolbar2QT as NavigationToolbar
 from matplotlib.widgets import Cursor
@@ -145,41 +146,42 @@ class App(QMainWindow):
         self.tabs.addTab(self.tab3, 'Output')
 
         # create params widget
-        self.params_widget = QWidget()
+        # self.params_widget = QWidget()
+        self.params_widget = QSplitter()
         self.params_layout = QGridLayout()
         self.gau_layout = QVBoxLayout()
         self.gau_widget = QWidget()
         self.gau_widget.setLayout(self.gau_layout)
-        self.gau_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.gau_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.gau_scroll = QScrollArea()
         self.gau_scroll.setWidget(self.gau_widget)
-        self.gau_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        # self.gau_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.gau_scroll.setWidgetResizable(True)
         self.lor_widget = QWidget()
         self.lor_layout = QVBoxLayout()
         self.lor_widget.setLayout(self.lor_layout)
-        self.lor_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.lor_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.lor_scroll = QScrollArea()
         self.lor_scroll.setWidget(self.lor_widget)
-        self.lor_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        # self.lor_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.lor_scroll.setWidgetResizable(True)
         self.voi_widget = QWidget()
         self.voi_layout = QVBoxLayout()
         self.voi_widget.setLayout(self.voi_layout)
-        self.voi_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.voi_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.voi_scroll = QScrollArea()
         self.voi_scroll.setWidget(self.voi_widget)
-        self.voi_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        # self.voi_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.voi_scroll.setWidgetResizable(True)
         self.lin_widget = QWidget()
         self.lin_layout = QVBoxLayout()
         self.lin_widget.setLayout(self.lin_layout)
-        self.lin_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.lin_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.lin_scroll = QScrollArea()
         self.lin_scroll.setWidget(self.lin_widget)
-        self.lin_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        # self.lin_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.lin_scroll.setWidgetResizable(True)
-        self.lin_scroll.setMaximumWidth(300)
+        # self.lin_scroll.setMaximumWidth(300)
         self.params_layout.addWidget(self.gau_scroll, 0, 1)
         self.params_layout.addWidget(self.lor_scroll, 0, 2)
         self.params_layout.addWidget(self.voi_scroll, 0, 3)
@@ -209,7 +211,7 @@ class App(QMainWindow):
         self.edit_button.clicked.connect(self.toggle_edit_mode)
         self.edit_button.setStyleSheet('background-color: white')
         # need to see if the below setting looks ok on
-        # lower res displays
+        # HDPI displays
         self.tab1.toolbar.setIconSize(QSize(18, 18))
         spacer = QWidget()
         spacer.setFixedWidth(20)
@@ -372,6 +374,7 @@ class App(QMainWindow):
             # set param label text
             labels[param_name] = QLabel()
             labels[param_name].setText(param_name)
+            labels[param_name].setAlignment(Qt.AlignTop)
 
             # make qlineedit widgets
             for key in self.usr_entry_widgets:

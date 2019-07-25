@@ -23,7 +23,9 @@
     -  Will need to either make a custom class or mess with the style sheets
         - the former option would be better
 - [ ] Reconcile amp/height, sigma/fwhm
-    - [ ] would be better if user specifies height and fwhm
+    - would be better if user specifies height and fwhm
+    - this will just be an interface thing, fits will still use amp/height
+        - will need to convert whenever we show the user a param (e.g. setPlaceholderText)
 - [ ] Add button(s) to save fit details and results
 
 ### Medium Priority

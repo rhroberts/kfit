@@ -91,5 +91,4 @@ def fwhm_voi(sigma):
     return(2*sigma)
 
 
-def height_voi(amp, sigma, frac):
-
+# def height_voi(amp, sigma, frac):
