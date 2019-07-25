@@ -85,7 +85,8 @@ class App(QMainWindow):
 
         # Create the Main Widget and Layout
         self.main_layout = QVBoxLayout()
-        self.main_widget = QWidget()
+        self.main_widget = QSplitter()
+        self.main_widget.setOrientation(Qt.Vertical)
         self.setCentralWidget(self.main_widget)
 
         # create "top bar" widget
@@ -144,64 +145,67 @@ class App(QMainWindow):
         self.tabs.addTab(self.tab1, 'Graph')
         self.tabs.addTab(self.tab2, 'Data')
         self.tabs.addTab(self.tab3, 'Output')
+        self.tabs.setMinimumHeight(300)
 
         # create params widget
         # self.params_widget = QWidget()
         self.params_widget = QSplitter()
-        self.params_layout = QGridLayout()
         self.gau_layout = QVBoxLayout()
+        self.gau_layout.setAlignment(Qt.AlignTop)
         self.gau_widget = QWidget()
         self.gau_widget.setLayout(self.gau_layout)
-        self.gau_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.gau_widget.setSizePolicy(
+            QSizePolicy.Expanding, QSizePolicy.Expanding
+        )
         self.gau_scroll = QScrollArea()
         self.gau_scroll.setWidget(self.gau_widget)
-        # self.gau_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.gau_scroll.setWidgetResizable(True)
         self.lor_widget = QWidget()
         self.lor_layout = QVBoxLayout()
+        self.lor_layout.setAlignment(Qt.AlignTop)
         self.lor_widget.setLayout(self.lor_layout)
-        self.lor_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.lor_widget.setSizePolicy(
+            QSizePolicy.Expanding, QSizePolicy.Expanding
+        )
         self.lor_scroll = QScrollArea()
         self.lor_scroll.setWidget(self.lor_widget)
-        # self.lor_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.lor_scroll.setWidgetResizable(True)
         self.voi_widget = QWidget()
         self.voi_layout = QVBoxLayout()
+        self.voi_layout.setAlignment(Qt.AlignTop)
         self.voi_widget.setLayout(self.voi_layout)
-        self.voi_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.voi_widget.setSizePolicy(
+            QSizePolicy.Expanding, QSizePolicy.Expanding
+        )
         self.voi_scroll = QScrollArea()
         self.voi_scroll.setWidget(self.voi_widget)
-        # self.voi_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.voi_scroll.setWidgetResizable(True)
         self.lin_widget = QWidget()
         self.lin_layout = QVBoxLayout()
+        self.lin_layout.setAlignment(Qt.AlignTop)
         self.lin_widget.setLayout(self.lin_layout)
-        self.lin_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.lin_widget.setSizePolicy(
+            QSizePolicy.Expanding, QSizePolicy.Expanding
+        )
         self.lin_scroll = QScrollArea()
         self.lin_scroll.setWidget(self.lin_widget)
-        # self.lin_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.lin_scroll.setWidgetResizable(True)
-        # self.lin_scroll.setMaximumWidth(300)
-        self.params_layout.addWidget(self.gau_scroll, 0, 1)
-        self.params_layout.addWidget(self.lor_scroll, 0, 2)
-        self.params_layout.addWidget(self.voi_scroll, 0, 3)
-        self.params_layout.addWidget(self.lin_scroll, 0, 4)
-        self.params_widget.setLayout(self.params_layout)
+        self.params_widget.addWidget(self.gau_scroll)
+        self.params_widget.addWidget(self.lor_scroll)
+        self.params_widget.addWidget(self.voi_scroll)
+        self.params_widget.addWidget(self.lin_scroll)
+        self.params_widget.setMinimumHeight(180)
 
-        # add everything to layout
-        self.main_layout.setSpacing(0)
-        self.main_layout.setContentsMargins(0, 0, 0, 0)
-        self.main_layout.addWidget(self.topbar_widget)
-        self.main_layout.addWidget(self.tabs)
-        self.main_layout.addWidget(self.params_widget)
-        self.main_widget.setLayout(self.main_layout)
+        # add everything to main widget
+        self.main_widget.addWidget(self.topbar_widget)
+        self.main_widget.addWidget(self.tabs)
+        self.main_widget.addWidget(self.params_widget)
 
         # Tab 1 - Graph / Model
         # Graph
         plt.style.use('fivethirtyeight')
         self.tab1.figure = Figure(figsize=(8, 6),  dpi=60)
         self.tab1.canvas = FigureCanvas(self.tab1.figure)
-        self.tab1.canvas.setMinimumHeight(400)
         self.tab1.toolbar = NavigationToolbar(self.tab1.canvas, self)
         # "click-to-set"/edit  button
         self.edit_button = QPushButton()
@@ -374,7 +378,6 @@ class App(QMainWindow):
             # set param label text
             labels[param_name] = QLabel()
             labels[param_name].setText(param_name)
-            labels[param_name].setAlignment(Qt.AlignTop)
 
             # make qlineedit widgets
             for key in self.usr_entry_widgets:
