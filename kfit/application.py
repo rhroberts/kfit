@@ -132,7 +132,6 @@ class App(QMainWindow):
         # add topbar widgets to layout
         self.topbar_layout.addWidget(self.xLabel)
         self.topbar_layout.addWidget(self.xLineEntry)
-        # self.topbar_layout.addSpacing(25)
         self.topbar_layout.addWidget(self.yLabel)
         self.topbar_layout.addWidget(self.yLineEntry)
         self.topbar_layout.addSpacing(30)
