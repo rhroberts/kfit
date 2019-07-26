@@ -71,6 +71,8 @@ def line_mod(N):
     return model
 
 
+# below functions convert amp/sigma to height/fwhm for
+# different curve types
 def fwhm_lor(sigma):
     return(2*sigma)  # lorentzian
 

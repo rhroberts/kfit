@@ -16,5 +16,4 @@ def to_df(file_path, sep=',', header='infer', index_col=None, skiprows=None, dty
         index_col=index_col, skiprows=skiprows, 
         dtype=dtype, encoding=encoding
     )
-
     return df

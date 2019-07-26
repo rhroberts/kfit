@@ -96,19 +96,24 @@ class App(QMainWindow):
         self.importButton = QPushButton('Import', self)
         self.importButton.setMaximumWidth(100)
         self.importButton.clicked.connect(self.get_data)
+        # import settings button
+        self.importSettingsButton = QPushButton('', self)
+        self.importSettingsButton.setIcon(QIcon.fromTheme('stock_properties'))
+        self.importSettingsButton.setMaximumWidth(40)
+        self.importSettingsButton.clicked.connect(self.import_settings)
         # fit button
         self.fitButton = QPushButton('Fit', self)
         self.fitButton.setMaximumWidth(100)
         self.fitButton.clicked.connect(self.fit)
         # progress bar
         self.progressBar = QProgressBar()
-        self.progressBar.setMaximumWidth(150)
+        # self.progressBar.setMaximumWidth(150)
         self.progressBar.hide()
         # get column header for x
         self.xLabel = QLabel(self)
         self.xLabel.setText('ColumnIndex(X):')
-        self.xLabel.setMaximumWidth(120)
-        self.xLabel.setAlignment(Qt.AlignCenter)
+        self.xLabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.xLabel.setMaximumWidth(250)
         self.xLineEntry = QLineEdit(self)
         self.xLineEntry.setPlaceholderText('0')
         self.xLineEntry.setAlignment(Qt.AlignCenter)
@@ -117,8 +122,8 @@ class App(QMainWindow):
         # get column header for y
         self.yLabel = QLabel(self)
         self.yLabel.setText('ColumnIndex(Y):')
-        self.yLabel.setMaximumWidth(120)
-        self.yLabel.setAlignment(Qt.AlignVCenter)
+        self.yLabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.yLabel.setMaximumWidth(250)
         self.yLineEntry = QLineEdit(self)
         self.yLineEntry.setPlaceholderText('1')
         self.yLineEntry.setAlignment(Qt.AlignCenter)
@@ -127,15 +132,17 @@ class App(QMainWindow):
         # add topbar widgets to layout
         self.topbar_layout.addWidget(self.xLabel)
         self.topbar_layout.addWidget(self.xLineEntry)
-        self.topbar_layout.addSpacing(25)
+        # self.topbar_layout.addSpacing(25)
         self.topbar_layout.addWidget(self.yLabel)
         self.topbar_layout.addWidget(self.yLineEntry)
-        self.topbar_layout.addSpacing(75)
+        self.topbar_layout.addSpacing(30)
         self.topbar_layout.addWidget(self.fitButton)
         self.topbar_layout.addWidget(self.importButton)
+        self.topbar_layout.addWidget(self.importSettingsButton)
         self.topbar_layout.addWidget(self.progressBar)
         self.topbar_layout.setAlignment(Qt.AlignRight)
         self.topbar_widget.setLayout(self.topbar_layout)
+        self.topbar_widget.setMaximumHeight(75)
 
         # create tabs widget
         self.tabs = QTabWidget(self)
@@ -611,6 +618,7 @@ class App(QMainWindow):
         sys.exit()
 
     def get_data(self):
+        # TODO: Give user more import options
         self.edit_button.setChecked(False)
         self.edit_unchecked_attr()
         # reset column indices
@@ -622,6 +630,7 @@ class App(QMainWindow):
         )
         if self.file_name != '':
             # this message isn't showing up...
+            # TODO: needs to be threaded
             self.statusBar.showMessage(
                 'Importing .csv file: ' + self.file_name, msg_length
             )
@@ -647,6 +656,9 @@ class App(QMainWindow):
         self.statusBar.showMessage(
             'Import finished.', msg_length
         )
+
+    def import_settings(self):
+        pass
 
     def plot(self):
         self.tab1.figure.clear()
