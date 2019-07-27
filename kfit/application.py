@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
                              QLineEdit, QTabWidget, QGridLayout,
                              QTableView, QSizePolicy, QScrollArea,
                              QLayout, QPlainTextEdit, QFileDialog,
-                             QSplitter)
+                             QSplitter, QDialog)
 from matplotlib.backends.backend_qt5agg import FigureCanvas, \
     NavigationToolbar2QT as NavigationToolbar
 from matplotlib.widgets import Cursor
@@ -100,7 +100,7 @@ class App(QMainWindow):
         self.importSettingsButton = QPushButton('', self)
         self.importSettingsButton.setIcon(QIcon.fromTheme('stock_properties'))
         self.importSettingsButton.setMaximumWidth(40)
-        self.importSettingsButton.clicked.connect(self.import_settings)
+        self.importSettingsButton.clicked.connect(self.import_settings_dialog)
         # fit button
         self.fitButton = QPushButton('Fit', self)
         self.fitButton.setMaximumWidth(100)
@@ -154,7 +154,6 @@ class App(QMainWindow):
         self.tabs.setMinimumHeight(300)
 
         # create params widget
-        # self.params_widget = QWidget()
         self.params_widget = QSplitter()
         self.gau_layout = QVBoxLayout()
         self.gau_layout.setAlignment(Qt.AlignTop)
@@ -633,7 +632,10 @@ class App(QMainWindow):
             self.statusBar.showMessage(
                 'Importing .csv file: ' + self.file_name, msg_length
             )
-            df = tools.to_df(self.file_name)
+            df = tools.to_df(
+                self.file_name, sep=',', header='infer', index_col=None,
+                skiprows=None, dtype=None, encoding=None
+            )
             self.data = df
         else:
             self.statusBar.showMessage(
@@ -656,8 +658,61 @@ class App(QMainWindow):
             'Import finished.', msg_length
         )
 
-    def import_settings(self):
-        pass
+    def import_settings_dialog(self):
+        self.dialog_window = QDialog()
+        self.dialog_window.setWindowTitle('File Import Settings')
+        toplevel = QVBoxLayout()
+        dialog_layout = QHBoxLayout()
+        label_layout = QVBoxLayout()
+        entry_layout = QVBoxLayout()
+        button_layout = QVBoxLayout()
+        label1 = QLabel(self.dialog_window)
+        label1.setText('sep')
+        label2 = QLabel(self.dialog_window)
+        label2.setText('header')
+        label3 = QLabel(self.dialog_window)
+        label3.setText('skiprows')
+        label4 = QLabel(self.dialog_window)
+        label4.setText('dtype')
+        label5 = QLabel(self.dialog_window)
+        label5.setText('encoding')
+        for lbl in [label1, label2, label3, label4, label5]:
+            label_layout.addWidget(lbl)
+        entry1 = QLineEdit(self.dialog_window)
+        entry2 = QLineEdit(self.dialog_window)
+        entry3 = QLineEdit(self.dialog_window)
+        entry4 = QLineEdit(self.dialog_window)
+        entry5 = QLineEdit(self.dialog_window)
+        entry1.setPlaceholderText(',')
+        entry2.setPlaceholderText('infer')
+        entry3.setPlaceholderText('None')
+        entry4.setPlaceholderText('None')
+        entry5.setPlaceholderText('None')
+        for ent in [entry1, entry2, entry3, entry4, entry5]:
+            ent.setAlignment(Qt.AlignCenter)
+            entry_layout.addWidget(ent)
+        button1 = QPushButton('Set', self.dialog_window)
+        button2 = QPushButton('Set', self.dialog_window)
+        button3 = QPushButton('Set', self.dialog_window)
+        button4 = QPushButton('Set', self.dialog_window)
+        button5 = QPushButton('Set', self.dialog_window)
+        for btn in [button1, button2, button3, button4, button5]:
+            button_layout.addWidget(btn)
+
+        reflabel = QLabel(self.dialog_window)
+        reflabel.setText(
+                "ref: <a href='https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html'>pandas.read_csv()</a>"
+        )
+        reflabel.setOpenExternalLinks(True)
+        reflabel.setAlignment(Qt.AlignCenter)
+        for lo in [label_layout, entry_layout, button_layout]:
+            dialog_layout.addLayout(lo)
+        toplevel.addLayout(dialog_layout)
+        toplevel.addSpacing(25)
+        toplevel.addWidget(reflabel)
+        self.dialog_window.setLayout(toplevel)
+        self.dialog_window.setWindowModality(Qt.ApplicationModal)
+        self.dialog_window.exec_()
 
     def plot(self):
         self.tab1.figure.clear()
