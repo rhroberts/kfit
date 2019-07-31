@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
                              QLineEdit, QTabWidget, QGridLayout,
                              QTableView, QSizePolicy, QScrollArea,
                              QLayout, QPlainTextEdit, QFileDialog,
-                             QSplitter, QDialog)
+                             QSplitter, QDialog, QCheckBox)
 from matplotlib.backends.backend_qt5agg import FigureCanvas, \
     NavigationToolbar2QT as NavigationToolbar
 from matplotlib.widgets import Cursor
@@ -57,11 +57,20 @@ class App(QMainWindow):
         self.usr_entry_widgets = {}
         self.cid = None
 
+        # file import settings
+        self.sep = ','
+        self.header = 'infer'
+        self.index_col = None
+        self.skiprows = None
+        self.dtype = None
+        self.encoding = None
+
         # temporary data
         x = np.linspace(0, 10, 500)
         y = models.gauss(x, 0.5, 4, 0.4) + \
             models.gauss(x, 0.8, 5, 0.2) + \
             models.gauss(x, 0.4, 6, 0.3) + 0.2
+
         # set data
         self.data = pd.DataFrame([x, y]).T
         self.data.columns = ['x', 'y']
@@ -212,20 +221,17 @@ class App(QMainWindow):
         self.tab1.figure = Figure(figsize=(8, 6),  dpi=60)
         self.tab1.canvas = FigureCanvas(self.tab1.figure)
         self.tab1.toolbar = NavigationToolbar(self.tab1.canvas, self)
-        # "click-to-set"/edit  button
-        self.edit_button = QPushButton()
-        self.edit_button.setIcon(QIcon.fromTheme('stock_edit'))
-        self.edit_button.setMaximumWidth(50)
-        self.edit_button.setCheckable(True)
-        self.edit_button.clicked.connect(self.toggle_edit_mode)
-        self.edit_button.setStyleSheet('background-color: white')
-        # need to see if the below setting looks ok on
-        # HDPI displays
+        # tristate checkbox for edit mode
+        self.emode_box = QCheckBox()
+        self.emode_box.setTristate(True)
+        self.emode_box.setIcon(QIcon.fromTheme('stock_edit'))
+        self.emode_box.stateChanged.connect(self.toggle_edit_mode)
+        # tweaking the toolbar layout
         self.tab1.toolbar.setIconSize(QSize(18, 18))
         spacer = QWidget()
         spacer.setFixedWidth(20)
         self.tab1.toolbar.addWidget(spacer)
-        self.tab1.toolbar.addWidget(self.edit_button)
+        self.tab1.toolbar.addWidget(self.emode_box)
         self.tab1.toolbar.locLabel.setAlignment(Qt.AlignRight | Qt.AlignCenter)
         graph_layout = QVBoxLayout()
         graph_layout.addWidget(self.tab1.toolbar)
@@ -533,8 +539,8 @@ class App(QMainWindow):
         self.xmax = np.max(self.x)
 
     def fit(self):
-        self.edit_button.setChecked(False)
-        self.edit_unchecked_attr()
+        self.emode_box.setCheckState(0)
+        self.toggle_edit_mode()
         self.set_xy_range()
         self.set_params()
         self.result = self.model.fit(
@@ -584,41 +590,50 @@ class App(QMainWindow):
         )
 
     def toggle_edit_mode(self):
-        if self.edit_button.isChecked():
-            self.edit_mode = True
-            self.edit_checked_attr()
-        else:
-            self.edit_mode = False
-            self.edit_unchecked_attr()
+        states = {
+            0: 'edit mode off',
+            1: 'edit mode on | copy x-value',
+            2: 'edit mode on | copy y-value',
+        }
+        self.statusBar.showMessage(
+            states[self.emode_box.checkState()], msg_length
+        )
+        if self.emode_box.checkState() == 0:
+            self.mpl_cursor = None
+            self.tab1.canvas.mpl_disconnect(self.cid)
+        if self.emode_box.checkState() == 1:
+            self.mpl_cursor = Cursor(
+                self.ax, lw=1, c='red', linestyle='--'
+            )
+            self.cid = self.tab1.canvas.mpl_connect(
+                'button_press_event', self.get_coord_click
+            )
+        if self.emode_box.checkState() == 2:
+            self.cid = self.tab1.canvas.mpl_connect(
+                'button_press_event', self.get_coord_click
+            )
 
     def get_coord_click(self, event):
         self.x_edit, self.y_edit = round(event.xdata, 3), round(event.ydata, 3)
-        pyperclip.copy(self.y_edit)
-        self.statusBar.showMessage(
-                'Copied Y=' + str(self.y_edit) + ' to clipboard!', msg_length
-        )
-
-    def edit_checked_attr(self):
-        self.mpl_cursor = Cursor(
-            self.ax, lw=1, c='red', linestyle='--'
-        )
-        self.edit_button.setStyleSheet('background-color: red')
-        self.cid = self.tab1.canvas.mpl_connect(
-            'button_press_event', self.get_coord_click
-        )
-
-    def edit_unchecked_attr(self):
-        self.mpl_cursor = None
-        self.tab1.canvas.mpl_disconnect(self.cid)
-        self.edit_button.setStyleSheet('background-color: white')
+        if self.emode_box.checkState() == 1:
+            pyperclip.copy(self.x_edit)
+            self.statusBar.showMessage(
+                    'Copied X=' + str(self.x_edit) + ' to clipboard!', msg_length
+            )
+        if self.emode_box.checkState() == 2:
+            pyperclip.copy(self.y_edit)
+            self.statusBar.showMessage(
+                    'Copied Y=' + str(self.y_edit) + ' to clipboard!', msg_length
+            )
 
     def close_app(self):
         sys.exit()
 
     def get_data(self):
-        # TODO: Give user more import options
-        self.edit_button.setChecked(False)
-        self.edit_unchecked_attr()
+        # TODO: app crashes when incorrect file settings are
+        # passed to to_df(), need some error handling here
+        self.emode_box.setCheckState(0)
+        self.toggle_edit_mode()
         # reset column indices
         self.xcol_idx = 0
         self.ycol_idx = 1
@@ -633,8 +648,9 @@ class App(QMainWindow):
                 'Importing .csv file: ' + self.file_name, msg_length
             )
             df = tools.to_df(
-                self.file_name, sep=',', header='infer', index_col=None,
-                skiprows=None, dtype=None, encoding=None
+                self.file_name, sep=self.sep, header=self.header,
+                index_col=self.index_col, skiprows=self.skiprows,
+                dtype=self.dtype, encoding=self.encoding
             )
             self.data = df
         else:
@@ -678,30 +694,46 @@ class App(QMainWindow):
         label5.setText('encoding')
         for lbl in [label1, label2, label3, label4, label5]:
             label_layout.addWidget(lbl)
-        entry1 = QLineEdit(self.dialog_window)
-        entry2 = QLineEdit(self.dialog_window)
-        entry3 = QLineEdit(self.dialog_window)
-        entry4 = QLineEdit(self.dialog_window)
-        entry5 = QLineEdit(self.dialog_window)
-        entry1.setPlaceholderText(',')
-        entry2.setPlaceholderText('infer')
-        entry3.setPlaceholderText('None')
-        entry4.setPlaceholderText('None')
-        entry5.setPlaceholderText('None')
-        for ent in [entry1, entry2, entry3, entry4, entry5]:
-            ent.setAlignment(Qt.AlignCenter)
-            entry_layout.addWidget(ent)
+        self.sep_edit = QLineEdit(self.dialog_window)
+        self.head_edit = QLineEdit(self.dialog_window)
+        self.skipr_edit = QLineEdit(self.dialog_window)
+        self.dtype_edit = QLineEdit(self.dialog_window)
+        self.enc_edit = QLineEdit(self.dialog_window)
+        self.sep_edit.setText(self.sep)
+        self.head_edit.setText(self.header)
+        # show None as placeholder text, not actual text 
+        if self.skiprows != None:
+            self.skipr_edit.setText(self.skiprows)
+        else:
+            self.skipr_edit.setPlaceholderText('None')
+        if self.dtype != None:
+            self.dtype_edit.setText(self.dtype)
+        else:
+            self.dtype_edit.setPlaceholderText('None')
+        if self.encoding != None:
+            self.enc_edit.setText(self.encoding)
+        else:
+            self.enc_edit.setPlaceholderText('None')
+
+        # add widgets to layout
+        for ewidget in [self.sep_edit, self.head_edit, self.skipr_edit,
+                        self.dtype_edit, self.enc_edit]:
+            ewidget.setAlignment(Qt.AlignCenter)
+            entry_layout.addWidget(ewidget)
+
         button1 = QPushButton('Set', self.dialog_window)
         button2 = QPushButton('Set', self.dialog_window)
         button3 = QPushButton('Set', self.dialog_window)
         button4 = QPushButton('Set', self.dialog_window)
         button5 = QPushButton('Set', self.dialog_window)
         for btn in [button1, button2, button3, button4, button5]:
+            btn.clicked.connect(self.set_import_settings)
             button_layout.addWidget(btn)
 
         reflabel = QLabel(self.dialog_window)
         reflabel.setText(
-                "ref: <a href='https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html'>pandas.read_csv()</a>"
+            "for help, refer to <a href='https://pandas.pydata.org/pandas-docs/stable/" +
+            "reference/api/pandas.read_csv.html'>pandas.read_csv()</a>"
         )
         reflabel.setOpenExternalLinks(True)
         reflabel.setAlignment(Qt.AlignCenter)
@@ -713,6 +745,13 @@ class App(QMainWindow):
         self.dialog_window.setLayout(toplevel)
         self.dialog_window.setWindowModality(Qt.ApplicationModal)
         self.dialog_window.exec_()
+
+    def set_import_settings(self):
+        self.sep = self.sep_edit
+        self.header = self.head_edit
+        self.skiprows = self.skipr_edit
+        self.dtype = self.dtype_edit
+        self.encoding = self.enc_edit
 
     def plot(self):
         self.tab1.figure.clear()
