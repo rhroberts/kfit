@@ -8,7 +8,8 @@ import matplotlib.cm as cm
 from kfit import models, tools
 from lmfit.model import Parameters
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import Qt, QAbstractTableModel, QModelIndex, QSize, QVariant
+from PyQt5.QtCore import (Qt, QAbstractTableModel, QModelIndex,
+                          QSize, QVariant, QEvent)
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
                              QStatusBar, QHBoxLayout, QApplication,
                              QPushButton, QProgressBar, QLabel,
@@ -87,10 +88,10 @@ class App(QMainWindow):
         self.setWindowIcon(QIcon('../images/K.png'))
 
         # set up the status bar
-        self.statusBar = QStatusBar()
-        self.setStatusBar(self.statusBar)
-        self.statusBar.showMessage('Welcome to kfit!', msg_length)
-        self.statusBar.setStyleSheet('background-color: white')
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+        self.status_bar.showMessage('Welcome to kfit!', msg_length)
+        self.status_bar.setStyleSheet('background-color: white')
 
         # Create the Main Widget and Layout
         self.main_layout = QVBoxLayout()
@@ -101,53 +102,65 @@ class App(QMainWindow):
         # create "top bar" widget
         self.topbar_layout = QHBoxLayout()
         self.topbar_widget = QWidget()
-        # import button
-        self.importButton = QPushButton('Import', self)
-        self.importButton.setMaximumWidth(100)
-        self.importButton.clicked.connect(self.get_data)
-        # import settings button
-        self.importSettingsButton = QPushButton('', self)
-        self.importSettingsButton.setIcon(QIcon.fromTheme('stock_properties'))
-        self.importSettingsButton.setMaximumWidth(40)
-        self.importSettingsButton.clicked.connect(self.import_settings_dialog)
         # fit button
-        self.fitButton = QPushButton('Fit', self)
-        self.fitButton.setMaximumWidth(100)
-        self.fitButton.clicked.connect(self.fit)
+        self.fit_button = QPushButton('Fit', self)
+        self.fit_button.setMaximumWidth(100)
+        self.fit_button.clicked.connect(self.fit)
+        # import button
+        self.import_button = QPushButton('Import', self)
+        self.import_button.setMaximumWidth(100)
+        self.import_button.clicked.connect(self.get_data)
+        # import settings button
+        self.import_settings_button = QPushButton('', self)
+        self.import_settings_button.setIcon(
+            QIcon.fromTheme('stock_properties')
+        )
+        self.import_settings_button.setMaximumWidth(40)
+        self.import_settings_button.clicked.connect(
+            self.import_settings_dialog
+        )
+        # reset fit button
+        self.reset_button = QPushButton('', self)
+        self.reset_button.setIcon(QIcon.fromTheme('view-refresh'))
+        self.reset_button.setMaximumWidth(40)
+        self.reset_button.clicked.connect(self.hard_reset)
+        self.reset_button.installEventFilter(self)
+        # save results button
         # progress bar
-        self.progressBar = QProgressBar()
+        self.progress_bar = QProgressBar()
         # self.progressBar.setMaximumWidth(150)
-        self.progressBar.hide()
+        self.progress_bar.hide()
         # get column header for x
-        self.xLabel = QLabel(self)
-        self.xLabel.setText('ColumnIndex(X):')
-        self.xLabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.xLabel.setMaximumWidth(250)
-        self.xLineEntry = QLineEdit(self)
-        self.xLineEntry.setPlaceholderText('0')
-        self.xLineEntry.setAlignment(Qt.AlignCenter)
-        self.xLineEntry.setMaximumWidth(100)
-        self.xLineEntry.returnPressed.connect(self.xset_click)
+        self.xlabel = QLabel(self)
+        self.xlabel.setText('ColumnIndex(X):')
+        self.xlabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.xlabel.setMaximumWidth(250)
+        self.xline_entry = QLineEdit(self)
+        self.xline_entry.setPlaceholderText('0')
+        self.xline_entry.setAlignment(Qt.AlignCenter)
+        self.xline_entry.setMaximumWidth(100)
+        self.xline_entry.returnPressed.connect(self.xset_click)
         # get column header for y
-        self.yLabel = QLabel(self)
-        self.yLabel.setText('ColumnIndex(Y):')
-        self.yLabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.yLabel.setMaximumWidth(250)
-        self.yLineEntry = QLineEdit(self)
-        self.yLineEntry.setPlaceholderText('1')
-        self.yLineEntry.setAlignment(Qt.AlignCenter)
-        self.yLineEntry.setMaximumWidth(100)
-        self.yLineEntry.returnPressed.connect(self.yset_click)
+        self.ylabel = QLabel(self)
+        self.ylabel.setText('ColumnIndex(Y):')
+        self.ylabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.ylabel.setMaximumWidth(250)
+        self.yline_entry = QLineEdit(self)
+        self.yline_entry.setPlaceholderText('1')
+        self.yline_entry.setAlignment(Qt.AlignCenter)
+        self.yline_entry.setMaximumWidth(100)
+        self.yline_entry.returnPressed.connect(self.yset_click)
         # add topbar widgets to layout
-        self.topbar_layout.addWidget(self.xLabel)
-        self.topbar_layout.addWidget(self.xLineEntry)
-        self.topbar_layout.addWidget(self.yLabel)
-        self.topbar_layout.addWidget(self.yLineEntry)
+        self.topbar_layout.addWidget(self.xlabel)
+        self.topbar_layout.addWidget(self.xline_entry)
+        self.topbar_layout.addWidget(self.ylabel)
+        self.topbar_layout.addWidget(self.yline_entry)
         self.topbar_layout.addSpacing(30)
-        self.topbar_layout.addWidget(self.fitButton)
-        self.topbar_layout.addWidget(self.importButton)
-        self.topbar_layout.addWidget(self.importSettingsButton)
-        self.topbar_layout.addWidget(self.progressBar)
+        self.topbar_layout.addWidget(self.fit_button)
+        self.topbar_layout.addWidget(self.import_button)
+        self.topbar_layout.addWidget(self.import_settings_button)
+        self.topbar_layout.addWidget(self.reset_button)
+        self.topbar_layout.addWidget(self.progress_bar)
         self.topbar_layout.setAlignment(Qt.AlignRight)
         self.topbar_widget.setLayout(self.topbar_layout)
         self.topbar_widget.setMaximumHeight(75)
@@ -355,6 +368,14 @@ class App(QMainWindow):
         self.init_param_widgets()
         self.show()
 
+    def eventFilter(self, object, event):
+        if event.type() == QEvent.Enter:
+            self.status_bar.showMessage("Reset fit")
+            return True
+        elif event.type() == QEvent.Leave:
+            self.status_bar.showMessage(None)
+        return False
+
     def init_model(self):
         # increment() ensures nlin >= 1
         self.model = models.line_mod(self.nlin)
@@ -364,7 +385,7 @@ class App(QMainWindow):
             self.model += models.lor_mod(self.nlor)
         if self.nvoi != 0:
             self.model += models.voigt_mod(self.nvoi)
-        self.statusBar.showMessage(
+        self.status_bar.showMessage(
                 "Model updated: " +
                 str([self.ngau, self.nlor, self.nvoi, self.nlin]),
                 msg_length
@@ -379,11 +400,7 @@ class App(QMainWindow):
         }
         labels = {}
         rnd = 3  # decimals to round to in placeholder text
-        for layout in [
-            self.gau_layout, self.lor_layout,
-            self.voi_layout, self.lin_layout
-        ]:
-            self.clear_layout(layout)
+        self.clear_fit_layouts()
 
         for param_name in self.model.param_names:
             # set param label text
@@ -557,9 +574,9 @@ class App(QMainWindow):
 
     def xset_click(self):
         try:
-            idx = int(self.xLineEntry.text())
+            idx = int(self.xline_entry.text())
         except Exception:
-            self.statusBar.showMessage(idx_error_msg, msg_length)
+            self.status_bar.showMessage(idx_error_msg, msg_length)
             return
         self.xcol_idx = idx
         self.result = None
@@ -568,15 +585,15 @@ class App(QMainWindow):
         self.xmin = np.min(self.x)
         self.xmax = np.max(self.x)
         self.plot()
-        self.statusBar.showMessage(
+        self.status_bar.showMessage(
             'ColumnIndex(X) = ' + str(idx), msg_length
         )
 
     def yset_click(self):
         try:
-            idx = int(self.yLineEntry.text())
+            idx = int(self.yline_entry.text())
         except Exception:
-            self.statusBar.showMessage(idx_error_msg, msg_length)
+            self.status_bar.showMessage(idx_error_msg, msg_length)
             return
         self.ycol_idx = idx
         self.result = None
@@ -585,7 +602,7 @@ class App(QMainWindow):
         self.xmin = np.min(self.x)
         self.xmax = np.max(self.x)
         self.plot()
-        self.statusBar.showMessage(
+        self.status_bar.showMessage(
             'ColumnIndex(Y) = ' + str(idx), msg_length
         )
 
@@ -595,7 +612,7 @@ class App(QMainWindow):
             1: 'edit mode on | copy x-value',
             2: 'edit mode on | copy y-value',
         }
-        self.statusBar.showMessage(
+        self.status_bar.showMessage(
             states[self.emode_box.checkState()], msg_length
         )
         if self.emode_box.checkState() == 0:
@@ -617,13 +634,15 @@ class App(QMainWindow):
         self.x_edit, self.y_edit = round(event.xdata, 3), round(event.ydata, 3)
         if self.emode_box.checkState() == 1:
             pyperclip.copy(self.x_edit)
-            self.statusBar.showMessage(
-                    'Copied X=' + str(self.x_edit) + ' to clipboard!', msg_length
+            self.status_bar.showMessage(
+                    'Copied X=' + str(self.x_edit) + ' to clipboard!',
+                    msg_length
             )
         if self.emode_box.checkState() == 2:
             pyperclip.copy(self.y_edit)
-            self.statusBar.showMessage(
-                    'Copied Y=' + str(self.y_edit) + ' to clipboard!', msg_length
+            self.status_bar.showMessage(
+                    'Copied Y=' + str(self.y_edit) + ' to clipboard!',
+                    msg_length
             )
 
     def close_app(self):
@@ -644,7 +663,7 @@ class App(QMainWindow):
         if self.file_name != '':
             # this message isn't showing up...
             # TODO: needs to be threaded
-            self.statusBar.showMessage(
+            self.status_bar.showMessage(
                 'Importing .csv file: ' + self.file_name, msg_length
             )
             df = tools.to_df(
@@ -654,7 +673,7 @@ class App(QMainWindow):
             )
             self.data = df
         else:
-            self.statusBar.showMessage(
+            self.status_bar.showMessage(
                 'Import cancelled.', msg_length
             )
             return
@@ -670,7 +689,7 @@ class App(QMainWindow):
         self.xmin = self.data.iloc[:, self.xcol_idx].min()
         self.xmax = self.data.iloc[:, self.xcol_idx].max()
         self.plot()
-        self.statusBar.showMessage(
+        self.status_bar.showMessage(
             'Import finished.', msg_length
         )
 
@@ -701,16 +720,16 @@ class App(QMainWindow):
         self.enc_edit = QLineEdit(self.dialog_window)
         self.sep_edit.setText(self.sep)
         self.head_edit.setText(self.header)
-        # show None as placeholder text, not actual text 
-        if self.skiprows != None:
+        # show None as placeholder text, not actual text
+        if self.skiprows is not None:
             self.skipr_edit.setText(self.skiprows)
         else:
             self.skipr_edit.setPlaceholderText('None')
-        if self.dtype != None:
+        if self.dtype is not None:
             self.dtype_edit.setText(self.dtype)
         else:
             self.dtype_edit.setPlaceholderText('None')
-        if self.encoding != None:
+        if self.encoding is not None:
             self.enc_edit.setText(self.encoding)
         else:
             self.enc_edit.setPlaceholderText('None')
@@ -732,8 +751,9 @@ class App(QMainWindow):
 
         reflabel = QLabel(self.dialog_window)
         reflabel.setText(
-            "for help, refer to <a href='https://pandas.pydata.org/pandas-docs/stable/" +
-            "reference/api/pandas.read_csv.html'>pandas.read_csv()</a>"
+            "for help, refer to <a href='https://pandas.pydata.org/" +
+            "pandas-docs/stable/reference/api/" +
+            "pandas.read_csv.html'>pandas.read_csv()</a>"
         )
         reflabel.setOpenExternalLinks(True)
         reflabel.setAlignment(Qt.AlignCenter)
@@ -790,6 +810,35 @@ class App(QMainWindow):
                 else:
                     self.clear_layout(item.layout())
                 layout.removeItem(item)
+
+    def clear_fit_layouts(self):
+        for layout in [
+            self.gau_layout, self.lor_layout,
+            self.voi_layout, self.lin_layout
+        ]:
+            self.clear_layout(layout)
+
+    def hard_reset(self):
+        self.clear_fit_layouts()
+        self.ngau = 0
+        self.nlor = 0
+        self.nvoi = 0
+        self.nlin = 1
+        self.init_model()
+        self.params = Parameters()
+        self.result = None
+        self.guesses = {
+            'value': {},
+            'min': {},
+            'max': {}
+        }
+        self.usr_vals = {
+            'value': {},
+            'min': {},
+            'max': {}
+        }
+        self.init_param_widgets()
+        self.plot()
 
     def increment(self, val, add):
         if add:
@@ -883,10 +932,9 @@ class PandasModel(QAbstractTableModel):
 
 
 def run():
-    app = QApplication(sys.argv)
-    # don't understand the following line, but app won't run without it
-    GUI = App()
-    sys.exit(app.exec_())
+    qapp = QApplication(sys.argv)
+    App().show()
+    sys.exit(qapp.exec_())
 
 
 if __name__ == '__main__':
