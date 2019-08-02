@@ -15,22 +15,6 @@
 * I think finishing the below high-priority tasks will get the app to a place where it's decently user friendly
 
 - [ ] Need much better error handling
-- [ ] Add button(s) to save fit details and results
-- [x] Need a more robust file import import dialog
-    - still needs work, but will do for now
-- [x] Let user choose b/w grabbing x/y coords with edit_mode button
-    - Behavior should be:
-        1. Edit mode off
-        2. Edit mode on, grab x-value
-        3. Edit mode on, grab y-value
-    -  Will need to either make a custom class or mess with the style sheets
-        - the former option would be better
-    - Going to use checkboxes instead
-- [ ] Reconcile amp/height, sigma/fwhm AND/OR define peaks for user
-    - would be better if user specifies height and fwhm
-    - this will just be an interface thing, fits will still use amp/height
-        - will need to convert whenever we show the user a param (e.g. setPlaceholderText)
-    - I'm leaving this as is for now
 
 ### Medium Priority
 
@@ -41,16 +25,31 @@
 - Removing user entry from text box doesn't reset value to guess
     - is this resolved?
 - Need to show warning when user tries to enter value above/below the parameter bounds
-- Continue to clean up messy code
 
 ### Low Priority
 
+- [ ] Reconcile amp/height, sigma/fwhm AND/OR define peaks for user
+    - would be better if user specifies height and fwhm
+    - this will just be an interface thing, fits will still use amp/height
+        - will need to convert whenever we show the user a param (e.g. setPlaceholderText)
+    - I'm leaving this as is for now
 - Would be useful to have the app "learn" from previous fits
     - this would just involve keeping the results, for example, for gau1 and using those in the next fit, even if other models are added
 - Think more carefully about when/why things *actually* need to be class attributes of App()
 
 ### Done
 
+- [x] Add button(s) to save fit details and results
+- [x] Need a more robust file import import dialog
+    - still needs work, but will do for now
+- [x] Let user choose b/w grabbing x/y coords with edit_mode button
+    - Behavior should be:
+        1. Edit mode off
+        2. Edit mode on, grab x-value
+        3. Edit mode on, grab y-value
+    -  Will need to either make a custom class or mess with the style sheets
+        - the former option would be better
+    - Going to use checkboxes instead
 - [x] Fix the syntax
 - [x] Fit fails due to NaN error after importing new dataset
     - getting the syntax right fixed this, must have been a typo somewhere
