@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from kfit import models, tools
 from lmfit.model import Parameters
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QKeySequence
 from PyQt5.QtCore import (Qt, QAbstractTableModel, QModelIndex,
                           QSize, QVariant, QEvent)
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
@@ -16,7 +16,8 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
                              QLineEdit, QTabWidget, QGridLayout,
                              QTableView, QSizePolicy, QScrollArea,
                              QLayout, QPlainTextEdit, QFileDialog,
-                             QSplitter, QDialog, QCheckBox)
+                             QSplitter, QDialog, QCheckBox,
+                             QShortcut)
 from matplotlib.backends.backend_qt5agg import FigureCanvas, \
     NavigationToolbar2QT as NavigationToolbar
 from matplotlib.widgets import Cursor
@@ -42,6 +43,8 @@ class App(QMainWindow):
         self.nlin = 1
         self.model = None
         self.result = None
+        self.curves_df = None
+        self.params_df = None
         self.edit_mode = False
         # empty Parameters to hold parameter guesses/constraints
         self.params = Parameters()
@@ -65,6 +68,38 @@ class App(QMainWindow):
         self.skiprows = None
         self.dtype = None
         self.encoding = None
+
+        # keyboard shortcuts
+        self.fit_shortcut = QShortcut(QKeySequence('Ctrl+F'), self)
+        self.fit_shortcut.activated.connect(self.fit)
+        self.reset_shortcut = QShortcut(QKeySequence('Ctrl+R'), self)
+        self.reset_shortcut.activated.connect(self.hard_reset)
+        self.save_fit = QShortcut(QKeySequence('Ctrl+S'), self)
+        self.save_fit.activated.connect(self.export_results)
+        self.add_gau = QShortcut(QKeySequence('G'), self)
+        self.add_gau.activated.connect(lambda: self.increment('gau', True))
+        self.add_gau.activated.connect(self.init_param_widgets)
+        self.sub_gau = QShortcut(QKeySequence('Shift+G'), self)
+        self.sub_gau.activated.connect(lambda: self.increment('gau', False))
+        self.sub_gau.activated.connect(self.init_param_widgets)
+        self.add_lor = QShortcut(QKeySequence('L'), self)
+        self.add_lor.activated.connect(lambda: self.increment('lor', True))
+        self.add_lor.activated.connect(self.init_param_widgets)
+        self.sub_lor = QShortcut(QKeySequence('Shift+L'), self)
+        self.sub_lor.activated.connect(lambda: self.increment('lor', False))
+        self.sub_lor.activated.connect(self.init_param_widgets)
+        self.add_voi = QShortcut(QKeySequence('V'), self)
+        self.add_voi.activated.connect(lambda: self.increment('voi', True))
+        self.add_voi.activated.connect(self.init_param_widgets)
+        self.sub_voi = QShortcut(QKeySequence('Shift+V'), self)
+        self.sub_voi.activated.connect(lambda: self.increment('voi', False))
+        self.sub_voi.activated.connect(self.init_param_widgets)
+        self.add_lin = QShortcut(QKeySequence('N'), self)
+        self.add_lin.activated.connect(lambda: self.increment('lin', True))
+        self.add_lin.activated.connect(self.init_param_widgets)
+        self.sub_lin = QShortcut(QKeySequence('Shift+N'), self)
+        self.sub_lin.activated.connect(lambda: self.increment('lin', False))
+        self.sub_lin.activated.connect(self.init_param_widgets)
 
         # temporary data
         x = np.linspace(0, 10, 500)
@@ -106,10 +141,12 @@ class App(QMainWindow):
         self.fit_button = QPushButton('Fit', self)
         self.fit_button.setMaximumWidth(100)
         self.fit_button.clicked.connect(self.fit)
+        self.fit_button.installEventFilter(self)
         # import button
         self.import_button = QPushButton('Import', self)
         self.import_button.setMaximumWidth(100)
         self.import_button.clicked.connect(self.get_data)
+        self.import_button.installEventFilter(self)
         # import settings button
         self.import_settings_button = QPushButton('', self)
         self.import_settings_button.setIcon(
@@ -119,6 +156,7 @@ class App(QMainWindow):
         self.import_settings_button.clicked.connect(
             self.import_settings_dialog
         )
+        self.import_settings_button.installEventFilter(self)
         # reset fit button
         self.reset_button = QPushButton('', self)
         self.reset_button.setIcon(QIcon.fromTheme('view-refresh'))
@@ -126,6 +164,11 @@ class App(QMainWindow):
         self.reset_button.clicked.connect(self.hard_reset)
         self.reset_button.installEventFilter(self)
         # save results button
+        self.save_button = QPushButton('', self)
+        self.save_button.setIcon(QIcon.fromTheme('filesave'))
+        self.save_button.setMaximumWidth(40)
+        self.save_button.clicked.connect(self.export_results)
+        self.save_button.installEventFilter(self)
         # progress bar
         self.progress_bar = QProgressBar()
         # self.progressBar.setMaximumWidth(150)
@@ -160,6 +203,7 @@ class App(QMainWindow):
         self.topbar_layout.addWidget(self.import_button)
         self.topbar_layout.addWidget(self.import_settings_button)
         self.topbar_layout.addWidget(self.reset_button)
+        self.topbar_layout.addWidget(self.save_button)
         self.topbar_layout.addWidget(self.progress_bar)
         self.topbar_layout.setAlignment(Qt.AlignRight)
         self.topbar_widget.setLayout(self.topbar_layout)
@@ -239,6 +283,7 @@ class App(QMainWindow):
         self.emode_box.setTristate(True)
         self.emode_box.setIcon(QIcon.fromTheme('stock_edit'))
         self.emode_box.stateChanged.connect(self.toggle_edit_mode)
+        self.emode_box.installEventFilter(self)
         # tweaking the toolbar layout
         self.tab1.toolbar.setIconSize(QSize(18, 18))
         spacer = QWidget()
@@ -368,9 +413,70 @@ class App(QMainWindow):
         self.init_param_widgets()
         self.show()
 
+    def export_results(self):
+        self.process_results()
+        # open file dialog
+        exp_file_name, _ = QFileDialog.getSaveFileName(
+            self, 'QFileDialog.getSaveFileName()', 'fit_results.csv',
+            'CSV files (*.csv)',
+        )
+        if exp_file_name:
+            self.process_results()
+            self.curves_df.to_csv(exp_file_name)
+            # NOTE: if user chooses a file extension other than .csv, or does
+            # not use a file extension, this should still work, but I haven't
+            # tested too rigorously yet
+            self.params_df.to_csv(
+                '{}.params.csv'.format(
+                    exp_file_name[:exp_file_name.find('.csv')]
+                )
+            )
+            self.status_bar.showMessage(
+                'Exported fit results to: ' +
+                exp_file_name, 2*msg_length
+            )
+        else:
+            self.status_bar.showMessage(
+                'Export canceled.', 2*msg_length
+            )
+            return
+
+    def process_results(self):
+        if self.result is not None:
+            self.params_df = pd.DataFrame.from_dict(
+                self.result.best_values, orient='index'
+            )
+            self.params_df.index.name = 'parameter'
+            self.params_df.columns = ['value']
+            curves_dict = {
+                'data': self.y,
+                'total_fit': self.result.best_fit,
+            }
+            components = self.result.eval_components()
+            for i, comp in enumerate(components):
+                curves_dict[comp[:comp.find('_')]] = components[comp]
+            self.curves_df = pd.DataFrame.from_dict(curves_dict)
+            self.curves_df.index = self.x
+            self.curves_df.index.name = self.data.columns[self.xcol_idx]
+        else:
+            self.status_bar.showMessage(
+                'No fit results to export!', msg_length
+            )
+
     def eventFilter(self, object, event):
         if event.type() == QEvent.Enter:
-            self.status_bar.showMessage("Reset fit")
+            if object is self.reset_button:
+                self.status_bar.showMessage("Reset fit")
+            if object is self.import_settings_button:
+                self.status_bar.showMessage("File import settings")
+            if object is self.import_button:
+                self.status_bar.showMessage("Import .csv file")
+            if object is self.fit_button:
+                self.status_bar.showMessage("Fit data")
+            if object is self.emode_box:
+                self.status_bar.showMessage("Toggle edit mode")
+            if object is self.save_button:
+                self.status_bar.showMessage("Export fit results")
             return True
         elif event.type() == QEvent.Leave:
             self.status_bar.showMessage(None)
@@ -608,9 +714,9 @@ class App(QMainWindow):
 
     def toggle_edit_mode(self):
         states = {
-            0: 'edit mode off',
-            1: 'edit mode on | copy x-value',
-            2: 'edit mode on | copy y-value',
+            0: 'Edit mode off',
+            1: 'Edit mode on | copy x-value',
+            2: 'Edit mode on | copy y-value',
         }
         self.status_bar.showMessage(
             states[self.emode_box.checkState()], msg_length
@@ -660,11 +766,11 @@ class App(QMainWindow):
         self.file_name, _ = QFileDialog.getOpenFileName(
             self, 'Open File', '', 'CSV files (*.csv)'
         )
-        if self.file_name != '':
+        if self.file_name:
             # this message isn't showing up...
             # TODO: needs to be threaded
             self.status_bar.showMessage(
-                'Importing .csv file: ' + self.file_name, msg_length
+                'Importing: ' + self.file_name, msg_length
             )
             df = tools.to_df(
                 self.file_name, sep=self.sep, header=self.header,
@@ -674,7 +780,7 @@ class App(QMainWindow):
             self.data = df
         else:
             self.status_bar.showMessage(
-                'Import cancelled.', msg_length
+                'Import canceled.', msg_length
             )
             return
 
@@ -827,6 +933,8 @@ class App(QMainWindow):
         self.init_model()
         self.params = Parameters()
         self.result = None
+        self.params_df = None
+        self.curves_df = None
         self.guesses = {
             'value': {},
             'min': {},
