@@ -34,8 +34,8 @@ class App(QMainWindow):
         self.title = 'kfit'
         self.left = 400
         self.top = 150
-        self.width = 1800
-        self.height = 1200
+        self.width = 1200
+        self.height = 800
         self.file_name = ''
         self.xcol_idx = 0
         self.ycol_idx = 1
@@ -179,28 +179,28 @@ class App(QMainWindow):
         self.xlabel = QLabel(self)
         self.xlabel.setText('ColumnIndex(X):')
         self.xlabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.xlabel.setMaximumWidth(250)
+        # self.xlabel.setMaximumWidth(250)
         self.xline_entry = QLineEdit(self)
         self.xline_entry.setText('0')
         self.xline_entry.setAlignment(Qt.AlignCenter)
-        self.xline_entry.setMaximumWidth(100)
+        # self.xline_entry.setMaximumWidth(50)
         self.xline_entry.returnPressed.connect(self.column_index_set)
         # get column header for y
         self.ylabel = QLabel(self)
         self.ylabel.setText('ColumnIndex(Y):')
         self.ylabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.ylabel.setMaximumWidth(250)
+        # self.ylabel.setMaximumWidth(100)
         self.yline_entry = QLineEdit(self)
         self.yline_entry.setText('1')
         self.yline_entry.setAlignment(Qt.AlignCenter)
-        self.yline_entry.setMaximumWidth(100)
+        # self.yline_entry.setMaximumWidth(50)
         self.yline_entry.returnPressed.connect(self.column_index_set)
         # add topbar widgets to layout
+        self.topbar_layout.addSpacing(600)
         self.topbar_layout.addWidget(self.xlabel)
         self.topbar_layout.addWidget(self.xline_entry)
         self.topbar_layout.addWidget(self.ylabel)
         self.topbar_layout.addWidget(self.yline_entry)
-        self.topbar_layout.addSpacing(30)
         self.topbar_layout.addWidget(self.fit_button)
         self.topbar_layout.addWidget(self.import_button)
         self.topbar_layout.addWidget(self.import_settings_button)
@@ -267,7 +267,7 @@ class App(QMainWindow):
         self.params_widget.addWidget(self.lor_scroll)
         self.params_widget.addWidget(self.voi_scroll)
         self.params_widget.addWidget(self.lin_scroll)
-        self.params_widget.setMinimumHeight(300)
+        self.params_widget.setMinimumHeight(180)
 
         # add everything to main widget
         self.main_widget.addWidget(self.topbar_widget)
@@ -287,7 +287,7 @@ class App(QMainWindow):
         self.emode_box.stateChanged.connect(self.toggle_edit_mode)
         self.emode_box.installEventFilter(self)
         # tweaking the toolbar layout
-        self.tab1.toolbar.setIconSize(QSize(32, 32))
+        self.tab1.toolbar.setIconSize(QSize(18, 18))
         spacer = QWidget()
         spacer.setFixedWidth(20)
         self.tab1.toolbar.addWidget(spacer)
