@@ -10,6 +10,11 @@
 
 ## TO-DOs
 
+### Packaging
+
+- [ ] Start by publishing with snapcraft
+    - Once that's done consider options for other platforms
+
 ### High Priority
 
 * I think finishing the below high-priority tasks will get the app to a place where it's decently user friendly

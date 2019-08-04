@@ -22,7 +22,9 @@ from matplotlib.backends.backend_qt5agg import FigureCanvas, \
     NavigationToolbar2QT as NavigationToolbar
 from matplotlib.widgets import Cursor
 
-idx_error_msg = "Error: Can't convert index to integer!"
+idx_type_error_msg = 'Error: Cannot convert index to integer!'
+idx_range_error_msg = 'Error: Column index is out of range!'
+file_import_error_msg = 'Error: Failed to import file with the given settings!'
 msg_length = 2000
 
 
@@ -32,8 +34,8 @@ class App(QMainWindow):
         self.title = 'kfit'
         self.left = 400
         self.top = 150
-        self.width = 1200
-        self.height = 800
+        self.width = 1800
+        self.height = 1200
         self.file_name = ''
         self.xcol_idx = 0
         self.ycol_idx = 1
@@ -179,20 +181,20 @@ class App(QMainWindow):
         self.xlabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.xlabel.setMaximumWidth(250)
         self.xline_entry = QLineEdit(self)
-        self.xline_entry.setPlaceholderText('0')
+        self.xline_entry.setText('0')
         self.xline_entry.setAlignment(Qt.AlignCenter)
         self.xline_entry.setMaximumWidth(100)
-        self.xline_entry.returnPressed.connect(self.xset_click)
+        self.xline_entry.returnPressed.connect(self.column_index_set)
         # get column header for y
         self.ylabel = QLabel(self)
         self.ylabel.setText('ColumnIndex(Y):')
         self.ylabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.ylabel.setMaximumWidth(250)
         self.yline_entry = QLineEdit(self)
-        self.yline_entry.setPlaceholderText('1')
+        self.yline_entry.setText('1')
         self.yline_entry.setAlignment(Qt.AlignCenter)
         self.yline_entry.setMaximumWidth(100)
-        self.yline_entry.returnPressed.connect(self.yset_click)
+        self.yline_entry.returnPressed.connect(self.column_index_set)
         # add topbar widgets to layout
         self.topbar_layout.addWidget(self.xlabel)
         self.topbar_layout.addWidget(self.xline_entry)
@@ -265,7 +267,7 @@ class App(QMainWindow):
         self.params_widget.addWidget(self.lor_scroll)
         self.params_widget.addWidget(self.voi_scroll)
         self.params_widget.addWidget(self.lin_scroll)
-        self.params_widget.setMinimumHeight(180)
+        self.params_widget.setMinimumHeight(300)
 
         # add everything to main widget
         self.main_widget.addWidget(self.topbar_widget)
@@ -285,7 +287,7 @@ class App(QMainWindow):
         self.emode_box.stateChanged.connect(self.toggle_edit_mode)
         self.emode_box.installEventFilter(self)
         # tweaking the toolbar layout
-        self.tab1.toolbar.setIconSize(QSize(18, 18))
+        self.tab1.toolbar.setIconSize(QSize(32, 32))
         spacer = QWidget()
         spacer.setFixedWidth(20)
         self.tab1.toolbar.addWidget(spacer)
@@ -678,41 +680,52 @@ class App(QMainWindow):
         # update widgets with new placeholder text
         self.update_param_widgets()
 
-    def xset_click(self):
+    def column_index_set(self):
+        # make sure user enters index that can be converted to int
         try:
-            idx = int(self.xline_entry.text())
-        except Exception:
-            self.status_bar.showMessage(idx_error_msg, msg_length)
+            idx_x = int(self.xline_entry.text())
+        except ValueError:
+            self.status_bar.showMessage(idx_type_error_msg, msg_length)
+            self.xline_entry.setText(None)
             return
-        self.xcol_idx = idx
+        try:
+            idx_y = int(self.yline_entry.text())
+        except ValueError:
+            self.status_bar.showMessage(idx_type_error_msg, msg_length)
+            self.yline_entry.setText(None)
+            return
+        self.xcol_idx = idx_x
+        self.ycol_idx = idx_y
         self.result = None
-        self.x = self.data.iloc[:, self.xcol_idx]
-        self.y = self.data.iloc[:, self.ycol_idx]
+        # make sure user enters an index that's in the data range
+        try:
+            self.x = self.data.iloc[:, self.xcol_idx]
+        except IndexError:
+            self.status_bar.showMessage(idx_range_error_msg, msg_length)
+            self.xline_entry.setText(None)
+            return
+        try:
+            self.y = self.data.iloc[:, self.ycol_idx]
+        except IndexError:
+            self.status_bar.showMessage(idx_range_error_msg, msg_length)
+            self.yline_entry.setText(None)
+            return
         self.xmin = np.min(self.x)
         self.xmax = np.max(self.x)
         self.plot()
         self.status_bar.showMessage(
-            'ColumnIndex(X) = ' + str(idx), msg_length
-        )
-
-    def yset_click(self):
-        try:
-            idx = int(self.yline_entry.text())
-        except Exception:
-            self.status_bar.showMessage(idx_error_msg, msg_length)
-            return
-        self.ycol_idx = idx
-        self.result = None
-        self.x = self.data.iloc[:, self.xcol_idx]
-        self.y = self.data.iloc[:, self.ycol_idx]
-        self.xmin = np.min(self.x)
-        self.xmax = np.max(self.x)
-        self.plot()
-        self.status_bar.showMessage(
-            'ColumnIndex(Y) = ' + str(idx), msg_length
+            'ColumnIndex(X) = ' + str(idx_x) + ', ' +
+            'ColumnIndex(Y) = ' + str(idx_y),
+            msg_length
         )
 
     def toggle_edit_mode(self):
+        # first toggle off the zoom or pan button
+        # so they don't interfere with edit_mode cursor style
+        if self.tab1.toolbar._active == 'ZOOM':
+            self.tab1.toolbar.zoom()
+        if self.tab1.toolbar._active == 'PAN':
+            self.tab1.toolbar.pan()
         states = {
             0: 'Edit mode off',
             1: 'Edit mode on | copy x-value',
@@ -755,8 +768,6 @@ class App(QMainWindow):
         sys.exit()
 
     def get_data(self):
-        # TODO: app crashes when incorrect file settings are
-        # passed to to_df(), need some error handling here
         self.emode_box.setCheckState(0)
         self.toggle_edit_mode()
         # reset column indices
@@ -764,7 +775,7 @@ class App(QMainWindow):
         self.ycol_idx = 1
         # open file dialog
         self.file_name, _ = QFileDialog.getOpenFileName(
-            self, 'Open File', '', 'CSV files (*.csv)'
+            self, 'Open File', '', 'CSV files (*.csv);; All Files (*)'
         )
         if self.file_name:
             # this message isn't showing up...
@@ -772,18 +783,26 @@ class App(QMainWindow):
             self.status_bar.showMessage(
                 'Importing: ' + self.file_name, msg_length
             )
-            df = tools.to_df(
-                self.file_name, sep=self.sep, header=self.header,
-                index_col=self.index_col, skiprows=self.skiprows,
-                dtype=self.dtype, encoding=self.encoding
-            )
-            self.data = df
+            try:
+                df = tools.to_df(
+                    self.file_name, sep=self.sep, header=self.header,
+                    index_col=self.index_col, skiprows=self.skiprows,
+                    dtype=self.dtype, encoding=self.encoding
+                )
+                df.iloc[:, self.xcol_idx]
+                df.iloc[:, self.ycol_idx]
+            except Exception:
+                self.status_bar.showMessage(
+                    file_import_error_msg, 2*msg_length
+                )
+                return
         else:
             self.status_bar.showMessage(
                 'Import canceled.', msg_length
             )
             return
 
+        self.data = df
         self.table_model = PandasModel(self.data)
         self.tab2.setModel(self.table_model)
         self.tab2.resizeColumnsToContents()
@@ -826,19 +845,19 @@ class App(QMainWindow):
         self.enc_edit = QLineEdit(self.dialog_window)
         self.sep_edit.setText(self.sep)
         self.head_edit.setText(self.header)
-        # show None as placeholder text, not actual text
+        # if value is None, show text as 'None'
         if self.skiprows is not None:
             self.skipr_edit.setText(self.skiprows)
         else:
-            self.skipr_edit.setPlaceholderText('None')
+            self.skipr_edit.setText('None')
         if self.dtype is not None:
             self.dtype_edit.setText(self.dtype)
         else:
-            self.dtype_edit.setPlaceholderText('None')
+            self.dtype_edit.setText('None')
         if self.encoding is not None:
             self.enc_edit.setText(self.encoding)
         else:
-            self.enc_edit.setPlaceholderText('None')
+            self.enc_edit.setText('None')
 
         # add widgets to layout
         for ewidget in [self.sep_edit, self.head_edit, self.skipr_edit,
@@ -873,11 +892,21 @@ class App(QMainWindow):
         self.dialog_window.exec_()
 
     def set_import_settings(self):
-        self.sep = self.sep_edit
-        self.header = self.head_edit
-        self.skiprows = self.skipr_edit
-        self.dtype = self.dtype_edit
-        self.encoding = self.enc_edit
+        self.sep = self.sep_edit.text()
+        self.header = self.head_edit.text()
+        # convert 'None' entries to None
+        if self.skipr_edit.text() == 'None':
+            self.skiprows = None
+        else:
+            self.skiprows = self.skipr_edit.text()
+        if self.dtype_edit.text() == 'None':
+            self.dtype = None
+        else:
+            self.dtype = self.dtype_edit.text()
+        if self.enc_edit.text() == 'None':
+            self.encoding = None
+        else:
+            self.encoding = self.enc_edit.text()
 
     def plot(self):
         self.tab1.figure.clear()
