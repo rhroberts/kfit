@@ -1,0 +1,49 @@
+# Author: Rusty Roberts
+# Adapted from fivethirtyeight.mplstyle
+#   Author: Cameron Davidson-Pilon, replicated styles from FiveThirtyEight.com
+#   See https://www.dataorigami.net/blogs/fivethirtyeight-mpl
+
+lines.linewidth: 4
+lines.solid_capstyle: round
+
+legend.fancybox: false
+
+axes.prop_cycle: cycler('color', ['008fd5', 'fc4f30', 'e5ae38', '6d904f', '8b8b8b', '810f7c'])
+# axes.facecolor: f0f0f0
+axes.facecolor: f5f6f7
+axes.labelsize: 18
+axes.labelpad: 18
+axes.labelweight: light
+axes.axisbelow: true
+axes.grid: true
+# axes.edgecolor: f0f0f0
+axes.edgecolor: f5f6f7
+axes.linewidth: 3.0
+axes.titlesize: large
+
+patch.edgecolor: f0f0f0
+patch.linewidth: 0.5
+
+grid.linestyle: -
+grid.linewidth: 1.0
+grid.color: cbcbcb
+
+xtick.major.size: 0
+xtick.minor.size: 0
+ytick.major.size: 0
+ytick.minor.size: 0
+
+font.size: 18
+font.family: Ubuntu
+font.weight: light
+# font.sans-serif: Verdana
+
+savefig.edgecolor: f0f0f0
+savefig.facecolor: f0f0f0
+
+figure.subplot.left: 0.07
+figure.subplot.right: 0.965
+figure.subplot.bottom: 0.15
+figure.subplot.top: 1
+# figure.facecolor: f0f0f0
+figure.facecolor: f5f6f7

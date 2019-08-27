@@ -1,56 +1,99 @@
 #!/usr/bin/env python3
 
-import sys
-import pyperclip
+import os
+from matplotlib import cm
+import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_gtk3cairo import (
+    FigureCanvasGTK3Cairo as FigureCanvas)
+from custom_backend_gtk3 import (
+    NavigationToolbar2GTK3 as NavigationToolbar)
 import pandas as pd
 import numpy as np
-from matplotlib.figure import Figure
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-from kfit import models, tools
 from lmfit.model import Parameters
-from PyQt5.QtGui import QIcon, QKeySequence
-from PyQt5.QtCore import (Qt, QAbstractTableModel, QModelIndex,
-                          QSize, QVariant, QEvent)
-from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
-                             QStatusBar, QHBoxLayout, QApplication,
-                             QPushButton, QProgressBar, QLabel,
-                             QLineEdit, QTabWidget, QGridLayout,
-                             QTableView, QSizePolicy, QScrollArea,
-                             QLayout, QPlainTextEdit, QFileDialog,
-                             QSplitter, QDialog, QCheckBox,
-                             QShortcut)
-from matplotlib.backends.backend_qt5agg import FigureCanvas, \
-    NavigationToolbar2QT as NavigationToolbar
-from matplotlib.widgets import Cursor
+import models
+import tools
+import gi
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk
 
+curr_dir = os.path.abspath(os.path.dirname(__file__))
 idx_type_error_msg = 'Error: Cannot convert index to integer!'
 idx_range_error_msg = 'Error: Column index is out of range!'
 file_import_error_msg = 'Error: Failed to import file with the given settings!'
 msg_length = 2000
+pad = 3
 
 
-class App(QMainWindow):
+class App(Gtk.Application):
+
     def __init__(self):
-        super().__init__()
+        '''
+        Build GUI
+        '''
+        # build GUI from glade file
+        self.builder = Gtk.Builder()
+        self.glade_file = os.path.join(curr_dir, 'kfit.glade')
+        self.builder.add_from_file(self.glade_file)
+        # get the necessary ui objects
+        self.window = self.builder.get_object('main_window')
+        self.graph_box = self.builder.get_object('graph_box')
+        self.gau_sw = self.builder.get_object('param_scroll_gau')
+        self.lor_sw = self.builder.get_object('param_scroll_lor')
+        self.voi_sw = self.builder.get_object('param_scroll_voi')
+        self.lin_sw = self.builder.get_object('param_scroll_lin')
+        self.param_viewport_gau = self.builder.get_object('param_viewport_gau')
+        self.param_viewport_lor = self.builder.get_object('param_viewport_lor')
+        self.param_viewport_voi = self.builder.get_object('param_viewport_voi')
+        self.param_viewport_lin = self.builder.get_object('param_viewport_lin')
+        self.statusbar_viewport = self.builder.get_object('statusbar_viewport')
+        self.data_treeview = self.builder.get_object('data_treeview')
+        self.column_entry_x = self.builder.get_object('column_entry_x')
+        self.column_entry_y = self.builder.get_object('column_entry_y')
+        self.graph_box = self.builder.get_object('graph_box')
+        self.fname_textview = self.builder.get_object('fname_textview')
+        self.fit_button = self.builder.get_object('fit_button')
+        self.reset_button = self.builder.get_object('reset_button')
+        self.settings_button = self.builder.get_object('settings_button')
+        self.import_button = self.builder.get_object('import_button')
+        self.save_button = self.builder.get_object('save_button')
+        self.output_textview = self.builder.get_object('output_textview')
+
+        # define class attributes
         self.title = 'kfit'
-        self.left = 400
-        self.top = 150
-        self.width = 1200
-        self.height = 800
         self.file_name = ''
         self.xcol_idx = 0
         self.ycol_idx = 1
+        self.edit_mode = False
+
+        # for graph...
+        x = np.linspace(0, 10, 500)
+        y = models.gauss(x, 0.5, 4, 0.4) + \
+            models.gauss(x, 0.8, 5, 0.2) + \
+            models.gauss(x, 0.4, 6, 0.3) + 0.2
+        self.data = pd.DataFrame([x, y]).T
+        self.data.columns = ['x', 'y']
+        self.x = self.data['x'].values
+        self.y = self.data['y'].values
+        self.xmin = self.data['x'].min()
+        self.xmax = self.data['x'].max()
+        plt.style.use(os.path.join(curr_dir, 'kfit.mplstyle'))
+        self.figure = Figure(figsize=(10, 4), dpi=60)
+        self.canvas = FigureCanvas(self.figure)
+        self.canvas.set_size_request(900, 400)
+        self.toolbar = NavigationToolbar(self.canvas, self.window)
+        self.graph_box.pack_start(self.toolbar, True, True, 0)
+        self.graph_box.pack_start(self.canvas, True, True, 0)
+
+        # for fit...
+        self.model = None
+        self.result = None
         self.ngau = 0
         self.nlor = 0
         self.nvoi = 0
         self.nlin = 1
-        self.model = None
-        self.result = None
         self.curves_df = None
         self.params_df = None
-        self.edit_mode = False
-        # empty Parameters to hold parameter guesses/constraints
         self.params = Parameters()
         self.guesses = {
             'value': {},
@@ -65,6 +108,14 @@ class App(QMainWindow):
         self.usr_entry_widgets = {}
         self.cid = None
 
+        # for data view...
+        self.fname_buffer = Gtk.TextBuffer()
+        self.display_data()
+
+        # for output...
+        self.output_buffer = Gtk.TextBuffer()
+        self.output_textview.set_buffer(self.output_buffer)
+
         # file import settings
         self.sep = ','
         self.header = 'infer'
@@ -73,421 +124,95 @@ class App(QMainWindow):
         self.dtype = None
         self.encoding = None
 
-        # keyboard shortcuts
-        self.fit_shortcut = QShortcut(QKeySequence('Ctrl+F'), self)
-        self.fit_shortcut.activated.connect(self.fit)
-        self.reset_shortcut = QShortcut(QKeySequence('Ctrl+R'), self)
-        self.reset_shortcut.activated.connect(self.hard_reset)
-        self.save_fit = QShortcut(QKeySequence('Ctrl+S'), self)
-        self.save_fit.activated.connect(self.export_results)
-        self.add_gau = QShortcut(QKeySequence('G'), self)
-        self.add_gau.activated.connect(lambda: self.increment('gau', True))
-        self.add_gau.activated.connect(self.init_param_widgets)
-        self.sub_gau = QShortcut(QKeySequence('Shift+G'), self)
-        self.sub_gau.activated.connect(lambda: self.increment('gau', False))
-        self.sub_gau.activated.connect(self.init_param_widgets)
-        self.add_lor = QShortcut(QKeySequence('L'), self)
-        self.add_lor.activated.connect(lambda: self.increment('lor', True))
-        self.add_lor.activated.connect(self.init_param_widgets)
-        self.sub_lor = QShortcut(QKeySequence('Shift+L'), self)
-        self.sub_lor.activated.connect(lambda: self.increment('lor', False))
-        self.sub_lor.activated.connect(self.init_param_widgets)
-        self.add_voi = QShortcut(QKeySequence('V'), self)
-        self.add_voi.activated.connect(lambda: self.increment('voi', True))
-        self.add_voi.activated.connect(self.init_param_widgets)
-        self.sub_voi = QShortcut(QKeySequence('Shift+V'), self)
-        self.sub_voi.activated.connect(lambda: self.increment('voi', False))
-        self.sub_voi.activated.connect(self.init_param_widgets)
-        self.add_lin = QShortcut(QKeySequence('N'), self)
-        self.add_lin.activated.connect(lambda: self.increment('lin', True))
-        self.add_lin.activated.connect(self.init_param_widgets)
-        self.sub_lin = QShortcut(QKeySequence('Shift+N'), self)
-        self.sub_lin.activated.connect(lambda: self.increment('lin', False))
-        self.sub_lin.activated.connect(self.init_param_widgets)
-
-        # temporary data
-        x = np.linspace(0, 10, 500)
-        y = models.gauss(x, 0.5, 4, 0.4) + \
-            models.gauss(x, 0.8, 5, 0.2) + \
-            models.gauss(x, 0.4, 6, 0.3) + 0.2
-
-        # set data
-        self.data = pd.DataFrame([x, y]).T
-        self.data.columns = ['x', 'y']
-        self.x = self.data['x']
-        self.y = self.data['y']
-        self.xmin = self.data['x'].min()
-        self.xmax = self.data['x'].max()
-
-        self.initUI()
-
-    def initUI(self):
-        self.setGeometry(self.left, self.top, self.width, self.height)
-        self.setWindowTitle(self.title)
-        self.setWindowIcon(QIcon('../images/K.png'))
-
-        # set up the status bar
-        self.status_bar = QStatusBar()
-        self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage('Welcome to kfit!', msg_length)
-        self.status_bar.setStyleSheet('background-color: white')
-
-        # Create the Main Widget and Layout
-        self.main_layout = QVBoxLayout()
-        self.main_widget = QSplitter()
-        self.main_widget.setOrientation(Qt.Vertical)
-        self.setCentralWidget(self.main_widget)
-
-        # create "top bar" widget
-        self.topbar_layout = QHBoxLayout()
-        self.topbar_widget = QWidget()
-        # fit button
-        self.fit_button = QPushButton('Fit', self)
-        self.fit_button.setMaximumWidth(100)
-        self.fit_button.clicked.connect(self.fit)
-        self.fit_button.installEventFilter(self)
-        # import button
-        self.import_button = QPushButton('Import', self)
-        self.import_button.setMaximumWidth(100)
-        self.import_button.clicked.connect(self.get_data)
-        self.import_button.installEventFilter(self)
-        # import settings button
-        self.import_settings_button = QPushButton('', self)
-        self.import_settings_button.setIcon(
-            QIcon.fromTheme('stock_properties')
-        )
-        self.import_settings_button.setMaximumWidth(40)
-        self.import_settings_button.clicked.connect(
-            self.import_settings_dialog
-        )
-        self.import_settings_button.installEventFilter(self)
-        # reset fit button
-        self.reset_button = QPushButton('', self)
-        self.reset_button.setIcon(QIcon.fromTheme('view-refresh'))
-        self.reset_button.setMaximumWidth(40)
-        self.reset_button.clicked.connect(self.hard_reset)
-        self.reset_button.installEventFilter(self)
-        # save results button
-        self.save_button = QPushButton('', self)
-        self.save_button.setIcon(QIcon.fromTheme('filesave'))
-        self.save_button.setMaximumWidth(40)
-        self.save_button.clicked.connect(self.export_results)
-        self.save_button.installEventFilter(self)
-        # progress bar
-        self.progress_bar = QProgressBar()
-        # self.progressBar.setMaximumWidth(150)
-        self.progress_bar.hide()
-        # get column header for x
-        self.xlabel = QLabel(self)
-        self.xlabel.setText('ColumnIndex(X):')
-        self.xlabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        # self.xlabel.setMaximumWidth(250)
-        self.xline_entry = QLineEdit(self)
-        self.xline_entry.setText('0')
-        self.xline_entry.setAlignment(Qt.AlignCenter)
-        # self.xline_entry.setMaximumWidth(50)
-        self.xline_entry.returnPressed.connect(self.column_index_set)
-        # get column header for y
-        self.ylabel = QLabel(self)
-        self.ylabel.setText('ColumnIndex(Y):')
-        self.ylabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        # self.ylabel.setMaximumWidth(100)
-        self.yline_entry = QLineEdit(self)
-        self.yline_entry.setText('1')
-        self.yline_entry.setAlignment(Qt.AlignCenter)
-        # self.yline_entry.setMaximumWidth(50)
-        self.yline_entry.returnPressed.connect(self.column_index_set)
-        # add topbar widgets to layout
-        self.topbar_layout.addSpacing(600)
-        self.topbar_layout.addWidget(self.xlabel)
-        self.topbar_layout.addWidget(self.xline_entry)
-        self.topbar_layout.addWidget(self.ylabel)
-        self.topbar_layout.addWidget(self.yline_entry)
-        self.topbar_layout.addWidget(self.fit_button)
-        self.topbar_layout.addWidget(self.import_button)
-        self.topbar_layout.addWidget(self.import_settings_button)
-        self.topbar_layout.addWidget(self.reset_button)
-        self.topbar_layout.addWidget(self.save_button)
-        self.topbar_layout.addWidget(self.progress_bar)
-        self.topbar_layout.setAlignment(Qt.AlignRight)
-        self.topbar_widget.setLayout(self.topbar_layout)
-        self.topbar_widget.setMaximumHeight(75)
-
-        # create tabs widget
-        self.tabs = QTabWidget(self)
-        self.tab1 = QWidget(self)
-        self.tab2 = QTableView(self)
-        self.tab3 = QWidget(self)
-        self.tabs.addTab(self.tab1, 'Graph')
-        self.tabs.addTab(self.tab2, 'Data')
-        self.tabs.addTab(self.tab3, 'Output')
-        self.tabs.setMinimumHeight(300)
-
-        # create params widget
-        self.params_widget = QSplitter()
-        self.gau_layout = QVBoxLayout()
-        self.gau_layout.setAlignment(Qt.AlignTop)
-        self.gau_widget = QWidget()
-        self.gau_widget.setLayout(self.gau_layout)
-        self.gau_widget.setSizePolicy(
-            QSizePolicy.Expanding, QSizePolicy.Expanding
-        )
-        self.gau_scroll = QScrollArea()
-        self.gau_scroll.setWidget(self.gau_widget)
-        self.gau_scroll.setWidgetResizable(True)
-        self.lor_widget = QWidget()
-        self.lor_layout = QVBoxLayout()
-        self.lor_layout.setAlignment(Qt.AlignTop)
-        self.lor_widget.setLayout(self.lor_layout)
-        self.lor_widget.setSizePolicy(
-            QSizePolicy.Expanding, QSizePolicy.Expanding
-        )
-        self.lor_scroll = QScrollArea()
-        self.lor_scroll.setWidget(self.lor_widget)
-        self.lor_scroll.setWidgetResizable(True)
-        self.voi_widget = QWidget()
-        self.voi_layout = QVBoxLayout()
-        self.voi_layout.setAlignment(Qt.AlignTop)
-        self.voi_widget.setLayout(self.voi_layout)
-        self.voi_widget.setSizePolicy(
-            QSizePolicy.Expanding, QSizePolicy.Expanding
-        )
-        self.voi_scroll = QScrollArea()
-        self.voi_scroll.setWidget(self.voi_widget)
-        self.voi_scroll.setWidgetResizable(True)
-        self.lin_widget = QWidget()
-        self.lin_layout = QVBoxLayout()
-        self.lin_layout.setAlignment(Qt.AlignTop)
-        self.lin_widget.setLayout(self.lin_layout)
-        self.lin_widget.setSizePolicy(
-            QSizePolicy.Expanding, QSizePolicy.Expanding
-        )
-        self.lin_scroll = QScrollArea()
-        self.lin_scroll.setWidget(self.lin_widget)
-        self.lin_scroll.setWidgetResizable(True)
-        self.params_widget.addWidget(self.gau_scroll)
-        self.params_widget.addWidget(self.lor_scroll)
-        self.params_widget.addWidget(self.voi_scroll)
-        self.params_widget.addWidget(self.lin_scroll)
-        self.params_widget.setMinimumHeight(180)
-
-        # add everything to main widget
-        self.main_widget.addWidget(self.topbar_widget)
-        self.main_widget.addWidget(self.tabs)
-        self.main_widget.addWidget(self.params_widget)
-
-        # Tab 1 - Graph / Model
-        # Graph
-        plt.style.use('fivethirtyeight')
-        self.tab1.figure = Figure(figsize=(8, 6),  dpi=60)
-        self.tab1.canvas = FigureCanvas(self.tab1.figure)
-        self.tab1.toolbar = NavigationToolbar(self.tab1.canvas, self)
-        # tristate checkbox for edit mode
-        self.emode_box = QCheckBox()
-        self.emode_box.setTristate(True)
-        self.emode_box.setIcon(QIcon.fromTheme('stock_edit'))
-        self.emode_box.stateChanged.connect(self.toggle_edit_mode)
-        self.emode_box.installEventFilter(self)
-        # tweaking the toolbar layout
-        self.tab1.toolbar.setIconSize(QSize(18, 18))
-        spacer = QWidget()
-        spacer.setFixedWidth(20)
-        self.tab1.toolbar.addWidget(spacer)
-        self.tab1.toolbar.addWidget(self.emode_box)
-        self.tab1.toolbar.locLabel.setAlignment(Qt.AlignRight | Qt.AlignCenter)
-        graph_layout = QVBoxLayout()
-        graph_layout.addWidget(self.tab1.toolbar)
-        graph_layout.addWidget(self.tab1.canvas)
-
-        # The "Set Model" layout
-        model_layout = QGridLayout()
-        widget_setgau = QWidget()
-        layout_setgau = QHBoxLayout()
-        layout_setgau.setSizeConstraint(QLayout.SetFixedSize)
-        widget_setgau.setLayout(layout_setgau)
-        widget_setlor = QWidget()
-        layout_setlor = QHBoxLayout()
-        layout_setlor.setSizeConstraint(QLayout.SetFixedSize)
-        widget_setlor.setLayout(layout_setlor)
-        widget_setvoi = QWidget()
-        layout_setvoi = QHBoxLayout()
-        layout_setvoi.setSizeConstraint(QLayout.SetFixedSize)
-        widget_setvoi.setLayout(layout_setvoi)
-        widget_setlin = QWidget()
-        layout_setlin = QHBoxLayout()
-        layout_setlin.setSizeConstraint(QLayout.SetFixedSize)
-        widget_setlin.setLayout(layout_setlin)
-        model_layout.addWidget(widget_setgau, 0, 0)
-        model_layout.addWidget(widget_setlor, 0, 1)
-        model_layout.addWidget(widget_setvoi, 0, 2)
-        model_layout.addWidget(widget_setlin, 0, 3)
-
-        # specify number of gaussian curves
-        gauss_label = QLabel(self)
-        gauss_label.setText('Gaussians')
-        gauss_label.setAlignment(Qt.AlignVCenter)
-        gauss_button_add = QPushButton('', self)
-        gauss_button_add.setIcon(QIcon.fromTheme('list-add'))
-        gauss_button_add.clicked.connect(
-            lambda: self.increment('gau', True)
-        )
-        gauss_button_add.clicked.connect(self.init_param_widgets)
-        gauss_button_sub = QPushButton('', self)
-        gauss_button_sub.setIcon(QIcon.fromTheme('list-remove'))
-        gauss_button_sub.clicked.connect(
-            lambda: self.increment('gau', False)
-        )
-        gauss_button_sub.clicked.connect(self.init_param_widgets)
-        layout_setgau.addWidget(gauss_label)
-        layout_setgau.addWidget(gauss_button_add)
-        layout_setgau.addWidget(gauss_button_sub)
-        # specify number of lorentzian curves
-        lorentz_label = QLabel(self)
-        lorentz_label.setText('Lorentzians')
-        lorentz_label.setAlignment(Qt.AlignVCenter)
-        lorentz_button_add = QPushButton('', self)
-        lorentz_button_add.setIcon(QIcon.fromTheme('list-add'))
-        lorentz_button_add.clicked.connect(
-            lambda: self.increment('lor', True)
-        )
-        lorentz_button_add.clicked.connect(self.init_param_widgets)
-        lorentz_button_sub = QPushButton('', self)
-        lorentz_button_sub.setIcon(QIcon.fromTheme('list-remove'))
-        lorentz_button_sub.clicked.connect(
-            lambda: self.increment('lor', False)
-        )
-        lorentz_button_sub.clicked.connect(self.init_param_widgets)
-        layout_setlor.addWidget(lorentz_label)
-        layout_setlor.addWidget(lorentz_button_add)
-        layout_setlor.addWidget(lorentz_button_sub)
-        # specify number of voigt curves
-        voigt_label = QLabel(self)
-        voigt_label.setText('Pseudo-Voigts')
-        voigt_label.setAlignment(Qt.AlignVCenter)
-        voigt_button_add = QPushButton('', self)
-        voigt_button_add.setIcon(QIcon.fromTheme('list-add'))
-        voigt_button_add.clicked.connect(
-            lambda: self.increment('voi', True)
-        )
-        voigt_button_add.clicked.connect(self.init_param_widgets)
-        voigt_button_sub = QPushButton('', self)
-        voigt_button_sub.setIcon(QIcon.fromTheme('list-remove'))
-        voigt_button_sub.clicked.connect(
-            lambda: self.increment('voi', False)
-        )
-        voigt_button_sub.clicked.connect(self.init_param_widgets)
-        layout_setvoi.addWidget(voigt_label)
-        layout_setvoi.addWidget(voigt_button_add)
-        layout_setvoi.addWidget(voigt_button_sub)
-        # specify number of lines
-        line_label = QLabel(self)
-        line_label.setText('Lines:')
-        line_label.setAlignment(Qt.AlignVCenter)
-        line_button_add = QPushButton('', self)
-        line_button_add.setIcon(QIcon.fromTheme('list-add'))
-        line_button_add.clicked.connect(
-            lambda: self.increment('lin', True)
-        )
-        line_button_add.clicked.connect(self.init_param_widgets)
-        line_button_sub = QPushButton('', self)
-        line_button_sub.setIcon(QIcon.fromTheme('list-remove'))
-        line_button_sub.clicked.connect(
-            lambda: self.increment('lin', False)
-        )
-        line_button_sub.clicked.connect(self.init_param_widgets)
-        layout_setlin.addWidget(line_label)
-        layout_setlin.addWidget(line_button_add)
-        layout_setlin.addWidget(line_button_sub)
-
-        graph_layout.addLayout(model_layout)
-        self.tab1.setLayout(graph_layout)
+        # show initial plot
         self.plot()
 
-        # Tab 2 - Data Table
-        self.table_model = PandasModel(self.data)
-        self.tab2.setModel(self.table_model)
-        self.tab2.resizeColumnsToContents()
+        # add statusbar
+        self.statusbar = Gtk.Statusbar()
+        self.statusbar.set_margin_top(0)
+        self.statusbar.set_margin_bottom(0)
+        self.statusbar.set_margin_start(0)
+        self.statusbar.set_margin_end(0)
+        self.statusbar_viewport.add(self.statusbar)
 
-        # Tab 3 - Output
-        self.tab3_widget = QPlainTextEdit()
-        tab3_layout = QVBoxLayout()
-        tab3_layout.addWidget(self.tab3_widget)
-        self.tab3.setLayout(tab3_layout)
+        # connect signals
+        events = {
+            'on_fit_button_clicked': self.fit,
+            'on_import_button_clicked': self.get_data,
+            'on_reset_button_clicked': self.hard_reset,
+            'on_add_gau_clicked': self.on_add_gau_clicked,
+            'on_rem_gau_clicked': self.on_rem_gau_clicked,
+            'on_add_lor_clicked': self.on_add_lor_clicked,
+            'on_rem_lor_clicked': self.on_rem_lor_clicked,
+            'on_add_voi_clicked': self.on_add_voi_clicked,
+            'on_rem_voi_clicked': self.on_rem_voi_clicked,
+            'on_add_lin_clicked': self.on_add_lin_clicked,
+            'on_rem_lin_clicked': self.on_rem_lin_clicked,
+            'on_column_entry_changed': self.column_index_set,
+        }
+        self.builder.connect_signals(events)
+
+        # add accelerators / keyboard shortcuts
+        self.accelerators = Gtk.AccelGroup()
+        self.window.add_accel_group(self.accelerators)
+        self.add_accelerator(self.fit_button, "<Control>f")
+        self.add_accelerator(self.reset_button, "<Control>r")
+        self.add_accelerator(self.settings_button, "<Control>p")
+        self.add_accelerator(self.import_button, "<Control>o")
+        self.add_accelerator(self.save_button, "<Control>s")
+
+        # configure interface
+        self.window.connect('destroy', Gtk.main_quit)
 
         self.init_param_widgets()
-        self.show()
+        # show the app window
+        self.window.show_all()
 
-    def export_results(self):
-        self.process_results()
-        # open file dialog
-        exp_file_name, _ = QFileDialog.getSaveFileName(
-            self, 'QFileDialog.getSaveFileName()', 'fit_results.csv',
-            'CSV files (*.csv)',
+    def plot(self):
+        self.figure.clear()
+        self.axis = self.figure.add_subplot(111)
+        self.set_xy_range()
+        self.axis.scatter(
+            self.x, self.y, s=200, c='#af87ff',
+            edgecolors='black', linewidth=1,
+            label='data'
         )
-        if exp_file_name:
-            self.process_results()
-            self.curves_df.to_csv(exp_file_name)
-            # NOTE: if user chooses a file extension other than .csv, or does
-            # not use a file extension, this should still work, but I haven't
-            # tested too rigorously yet
-            self.params_df.to_csv(
-                '{}.params.csv'.format(
-                    exp_file_name[:exp_file_name.find('.csv')]
-                )
-            )
-            self.status_bar.showMessage(
-                'Exported fit results to: ' +
-                exp_file_name, 2*msg_length
-            )
-        else:
-            self.status_bar.showMessage(
-                'Export canceled.', 2*msg_length
-            )
-            return
-
-    def process_results(self):
         if self.result is not None:
-            self.params_df = pd.DataFrame.from_dict(
-                self.result.best_values, orient='index'
-            )
-            self.params_df.index.name = 'parameter'
-            self.params_df.columns = ['value']
-            curves_dict = {
-                'data': self.y,
-                'total_fit': self.result.best_fit,
-            }
+            yfit = self.result.best_fit
+            self.axis.plot(self.x, yfit, c='r', linewidth=2.5)
+            cmap = cm.get_cmap('gnuplot')
             components = self.result.eval_components()
             for i, comp in enumerate(components):
-                curves_dict[comp[:comp.find('_')]] = components[comp]
-            self.curves_df = pd.DataFrame.from_dict(curves_dict)
-            self.curves_df.index = self.x
-            self.curves_df.index.name = self.data.columns[self.xcol_idx]
-        else:
-            self.status_bar.showMessage(
-                'No fit results to export!', msg_length
-            )
+                self.axis.plot(
+                    self.x, components[comp],
+                    linewidth=2.5, linestyle='--',
+                    c=cmap(i/len(components)),
+                    label=comp[:comp.find('_')]
+                )
+        self.axis.set_xlabel(self.data.columns[self.xcol_idx])
+        self.axis.set_ylabel(self.data.columns[self.ycol_idx])
+        self.axis.set_xlim([self.xmin, self.xmax])
+        self.canvas.draw()
 
-    def eventFilter(self, object, event):
-        if event.type() == QEvent.Enter:
-            if object is self.reset_button:
-                self.status_bar.showMessage("Reset fit")
-            if object is self.import_settings_button:
-                self.status_bar.showMessage("File import settings")
-            if object is self.import_button:
-                self.status_bar.showMessage("Import .csv file")
-            if object is self.fit_button:
-                self.status_bar.showMessage("Fit data")
-            if object is self.emode_box:
-                self.status_bar.showMessage("Toggle edit mode")
-            if object is self.save_button:
-                self.status_bar.showMessage("Export fit results")
-            return True
-        elif event.type() == QEvent.Leave:
-            self.status_bar.showMessage(None)
-        return False
+    def fit(self, source=None, event=None):
+        # self.emode_box.setCheckState(0)
+        # self.toggle_edit_mode()
+        self.set_xy_range(self)
+        self.set_params(self)
+        self.result = self.model.fit(
+            data=self.y, params=self.params, x=self.x,
+            method='least_squares'
+        )
+        self.output_buffer.set_text(self.result.fit_report())
+        self.plot()
+        # overwrite widgets to clear input (not ideal method..)
+        self.init_param_widgets()
+        # update widgets with new placeholder text
+        # NOTE: I think this is redundant?
+        # self.update_param_widgets()
 
     def init_model(self):
-        # increment() ensures nlin >= 1
+        # note: increment() ensures nlin >= 1
         self.model = models.line_mod(self.nlin)
         if self.ngau != 0:
             self.model += models.gauss_mod(self.ngau)
@@ -495,10 +220,11 @@ class App(QMainWindow):
             self.model += models.lor_mod(self.nlor)
         if self.nvoi != 0:
             self.model += models.voigt_mod(self.nvoi)
-        self.status_bar.showMessage(
+        self.statusbar.push(
+                self.statusbar.get_context_id('info'),
                 "Model updated: " +
                 str([self.ngau, self.nlor, self.nvoi, self.nlin]),
-                msg_length
+                # msg_length
         )
 
     def init_param_widgets(self):
@@ -510,67 +236,83 @@ class App(QMainWindow):
         }
         labels = {}
         rnd = 3  # decimals to round to in placeholder text
-        self.clear_fit_layouts()
+        self.clear_param_viewports()
 
+        # main boxes to hold user entry widgets
+        self.vbox_gau = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.vbox_lor = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.vbox_voi = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.vbox_lin = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         for param_name in self.model.param_names:
             # set param label text
-            labels[param_name] = QLabel()
-            labels[param_name].setText(param_name)
+            labels[param_name] = Gtk.Label()
+            labels[param_name].set_text(param_name)
 
-            # make qlineedit widgets
+            # make user entry widgets
             for key in self.usr_entry_widgets:
-                self.usr_entry_widgets[key][param_name] = QLineEdit()
+                self.usr_entry_widgets[key][param_name] = Gtk.Entry()
                 if param_name in self.usr_vals[key]:
                     self.usr_entry_widgets[key][param_name]\
-                        .setPlaceholderText(
+                        .set_placeholder_text(
                             str(round(self.usr_vals[key][param_name], rnd))
                         )
                 else:
                     self.usr_entry_widgets[key][param_name]\
-                        .setPlaceholderText(key)
+                        .set_placeholder_text(key)
                 # set up connections
-                # connect() expects a callable func, hence the lambda
-                self.usr_entry_widgets[key][param_name].returnPressed.connect(
-                    lambda: self.update_usr_vals(self.usr_entry_widgets)
+                self.usr_entry_widgets[key][param_name].connect(
+                    'changed', self.update_usr_vals, self.usr_entry_widgets
                 )
 
             # add widgets to respective layouts
-            sublayout1 = QVBoxLayout()
-            sublayout2 = QHBoxLayout()
-            sublayout1.addWidget(labels[param_name])
+            vbox_sub = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
             for key in self.usr_entry_widgets:
-                sublayout2.addWidget(
-                    self.usr_entry_widgets[key][param_name]
+                vbox_sub.pack_start(
+                    self.usr_entry_widgets[key][param_name],
+                    False, False, pad
                 )
             if param_name.find('gau') != -1:
-                self.gau_layout.addLayout(sublayout1)
-                self.gau_layout.addLayout(sublayout2)
+                self.vbox_gau.pack_start(labels[param_name], False, False, pad)
+                self.vbox_gau.pack_start(vbox_sub, False, False, pad)
+                self.vbox_gau.set_halign(Gtk.Align.CENTER)
             if param_name.find('lor') != -1:
-                self.lor_layout.addLayout(sublayout1)
-                self.lor_layout.addLayout(sublayout2)
+                self.vbox_lor.pack_start(labels[param_name], False, False, pad)
+                self.vbox_lor.pack_start(vbox_sub, False, False, pad)
+                self.vbox_lor.set_halign(Gtk.Align.CENTER)
             if param_name.find('voi') != -1:
-                self.voi_layout.addLayout(sublayout1)
-                self.voi_layout.addLayout(sublayout2)
+                self.vbox_voi.pack_start(labels[param_name], False, False, pad)
+                self.vbox_voi.pack_start(vbox_sub, False, False, pad)
+                self.vbox_voi.set_halign(Gtk.Align.CENTER)
             if param_name.find('lin') != -1:
-                self.lin_layout.addLayout(sublayout1)
-                self.lin_layout.addLayout(sublayout2)
+                self.vbox_lin.pack_start(labels[param_name], False, False, pad)
+                self.vbox_lin.pack_start(vbox_sub, False, False, pad)
+                self.vbox_lin.set_halign(Gtk.Align.CENTER)
 
         # Resize all of the LineEntry widgets
         for key in self.usr_entry_widgets:
             for param, widget in self.usr_entry_widgets[key].items():
-                widget.setMaximumWidth(150)
+                widget.set_width_chars(7)
+
+        # add/replace box in viewport
+        self.param_viewport_gau.add(self.vbox_gau)
+        self.param_viewport_lor.add(self.vbox_lor)
+        self.param_viewport_voi.add(self.vbox_voi)
+        self.param_viewport_lin.add(self.vbox_lin)
+        for viewport in [self.param_viewport_gau, self.param_viewport_lor,
+                         self.param_viewport_voi, self.param_viewport_lin]:
+            viewport.show_all()
 
         if self.result is not None:
             self.set_params()
             self.update_param_widgets()
 
-    def update_usr_vals(self, entry):
+    def update_usr_vals(self, widget, entry_widget_dict):
         # get text input from each usr_entry_widget
-        for val_type, param_dict in self.usr_entry_widgets.items():
+        for val_type, param_dict in entry_widget_dict.items():
             for param, param_widget in param_dict.items():
                 try:
                     self.usr_vals[val_type][param] = \
-                        float(param_widget.text())
+                        float(param_widget.get_text())
                 except Exception:
                     pass
 
@@ -582,17 +324,17 @@ class App(QMainWindow):
         # or from self.usr_vals
         for param in self.params:
             if param in self.result.best_values:
-                self.usr_entry_widgets['value'][param].setPlaceholderText(
+                self.usr_entry_widgets['value'][param].set_placeholder_text(
                     str(round(self.result.best_values[param], rnd))
                 )
-                self.usr_entry_widgets['min'][param].setPlaceholderText(
+                self.usr_entry_widgets['min'][param].set_placeholder_text(
                     str(round(self.params[param].min, rnd))
                 )
-                self.usr_entry_widgets['max'][param].setPlaceholderText(
+                self.usr_entry_widgets['max'][param].set_placeholder_text(
                     str(round(self.params[param].max, rnd))
                 )
 
-    def guess_params(self):
+    def guess_params(self, source=None, event=None):
         for comp in self.model.components:
             if comp.prefix.find('gau') != -1 or \
                     comp.prefix.find('lor') != -1 or \
@@ -630,10 +372,10 @@ class App(QMainWindow):
                     self.guesses['min'][p] = None
                     self.guesses['max'][p] = None
 
-    def set_params(self):
+    def set_params(self, source=None, event=None):
         self.params = Parameters()
         self.guess_params()
-        self.update_usr_vals(self.usr_entry_widgets)
+        self.update_usr_vals(None, self.usr_entry_widgets)
         vals = {}
 
         # fill params with any user-entered values
@@ -642,342 +384,28 @@ class App(QMainWindow):
             for val_type in ['value', 'min', 'max']:
                 if param_name in self.usr_vals[val_type]:
                     vals[val_type] = self.usr_vals[val_type][param_name]
-                    # print('param: ' + param_name + ', type: ' +\
-                    #         val_type + ', set_by: user')
                 else:
                     vals[val_type] = self.guesses[val_type][param_name]
-                    # print('param: ' + param_name + ', type: ' +\
-                    #         val_type + ', set_by: guess')
             self.params.add(
                 name=param_name, value=vals['value'], vary=True,
                 min=vals['min'], max=vals['max']
             )
 
-    def set_xy_range(self):
+    def set_xy_range(self, source=None, event=None):
         self.x = self.data.iloc[:, self.xcol_idx]
         self.y = self.data.iloc[:, self.ycol_idx]
-        self.xmin, self.xmax = self.ax.get_xlim()
+        # filter out NaN values
+        if True in np.isnan(self.x) or True in np.isnan(self.y):
+            nanbool = (~np.isnan(self.x)&~np.isnan(self.y))
+            self.x = self.x[nanbool]
+            self.y = self.y[nanbool]
+
+        # self.xmin, self.xmax = self.axis.get_xlim()
+        self.xmin = np.min(self.x) - 0.02*(np.max(self.x) - np.min(self.x))
+        self.xmax = np.max(self.x) + 0.02*(np.max(self.x) - np.min(self.x))
         range_bool = (self.x >= self.xmin) & (self.x <= self.xmax)
         self.x = self.x[range_bool].values
         self.y = self.y[range_bool].values
-
-    def reset_xy_range(self):
-        self.xmin = np.min(self.x)
-        self.xmax = np.max(self.x)
-
-    def fit(self):
-        self.emode_box.setCheckState(0)
-        self.toggle_edit_mode()
-        self.set_xy_range()
-        self.set_params()
-        self.result = self.model.fit(
-            data=self.y, params=self.params, x=self.x,
-            method='least_squares'
-        )
-        self.tab3_widget.clear()
-        self.tab3_widget.insertPlainText(self.result.fit_report())
-        self.plot()
-        # overwrite widgets to clear input (not ideal method..)
-        self.init_param_widgets()
-        # update widgets with new placeholder text
-        self.update_param_widgets()
-
-    def column_index_set(self):
-        # make sure user enters index that can be converted to int
-        try:
-            idx_x = int(self.xline_entry.text())
-        except ValueError:
-            self.status_bar.showMessage(idx_type_error_msg, msg_length)
-            self.xline_entry.setText(None)
-            return
-        try:
-            idx_y = int(self.yline_entry.text())
-        except ValueError:
-            self.status_bar.showMessage(idx_type_error_msg, msg_length)
-            self.yline_entry.setText(None)
-            return
-        self.xcol_idx = idx_x
-        self.ycol_idx = idx_y
-        self.result = None
-        # make sure user enters an index that's in the data range
-        try:
-            self.x = self.data.iloc[:, self.xcol_idx]
-        except IndexError:
-            self.status_bar.showMessage(idx_range_error_msg, msg_length)
-            self.xline_entry.setText(None)
-            return
-        try:
-            self.y = self.data.iloc[:, self.ycol_idx]
-        except IndexError:
-            self.status_bar.showMessage(idx_range_error_msg, msg_length)
-            self.yline_entry.setText(None)
-            return
-        self.xmin = np.min(self.x)
-        self.xmax = np.max(self.x)
-        self.plot()
-        self.status_bar.showMessage(
-            'ColumnIndex(X) = ' + str(idx_x) + ', ' +
-            'ColumnIndex(Y) = ' + str(idx_y),
-            msg_length
-        )
-
-    def toggle_edit_mode(self):
-        # first toggle off the zoom or pan button
-        # so they don't interfere with edit_mode cursor style
-        if self.tab1.toolbar._active == 'ZOOM':
-            self.tab1.toolbar.zoom()
-        if self.tab1.toolbar._active == 'PAN':
-            self.tab1.toolbar.pan()
-        states = {
-            0: 'Edit mode off',
-            1: 'Edit mode on | copy x-value',
-            2: 'Edit mode on | copy y-value',
-        }
-        self.status_bar.showMessage(
-            states[self.emode_box.checkState()], msg_length
-        )
-        if self.emode_box.checkState() == 0:
-            self.mpl_cursor = None
-            self.tab1.canvas.mpl_disconnect(self.cid)
-        if self.emode_box.checkState() == 1:
-            self.mpl_cursor = Cursor(
-                self.ax, lw=1, c='red', linestyle='--'
-            )
-            self.cid = self.tab1.canvas.mpl_connect(
-                'button_press_event', self.get_coord_click
-            )
-        if self.emode_box.checkState() == 2:
-            self.cid = self.tab1.canvas.mpl_connect(
-                'button_press_event', self.get_coord_click
-            )
-
-    def get_coord_click(self, event):
-        self.x_edit, self.y_edit = round(event.xdata, 3), round(event.ydata, 3)
-        if self.emode_box.checkState() == 1:
-            pyperclip.copy(self.x_edit)
-            self.status_bar.showMessage(
-                    'Copied X=' + str(self.x_edit) + ' to clipboard!',
-                    msg_length
-            )
-        if self.emode_box.checkState() == 2:
-            pyperclip.copy(self.y_edit)
-            self.status_bar.showMessage(
-                    'Copied Y=' + str(self.y_edit) + ' to clipboard!',
-                    msg_length
-            )
-
-    def close_app(self):
-        sys.exit()
-
-    def get_data(self):
-        self.emode_box.setCheckState(0)
-        self.toggle_edit_mode()
-        # reset column indices
-        self.xcol_idx = 0
-        self.ycol_idx = 1
-        # open file dialog
-        self.file_name, _ = QFileDialog.getOpenFileName(
-            self, 'Open File', '', 'CSV files (*.csv);; All Files (*)'
-        )
-        if self.file_name:
-            # this message isn't showing up...
-            # TODO: needs to be threaded
-            self.status_bar.showMessage(
-                'Importing: ' + self.file_name, msg_length
-            )
-            try:
-                df = tools.to_df(
-                    self.file_name, sep=self.sep, header=self.header,
-                    index_col=self.index_col, skiprows=self.skiprows,
-                    dtype=self.dtype, encoding=self.encoding
-                )
-                df.iloc[:, self.xcol_idx]
-                df.iloc[:, self.ycol_idx]
-            except Exception:
-                self.status_bar.showMessage(
-                    file_import_error_msg, 2*msg_length
-                )
-                return
-        else:
-            self.status_bar.showMessage(
-                'Import canceled.', msg_length
-            )
-            return
-
-        self.data = df
-        self.table_model = PandasModel(self.data)
-        self.tab2.setModel(self.table_model)
-        self.tab2.resizeColumnsToContents()
-        # clear any previous fit result
-        self.result = None
-        # reset x, y, and xlim
-        self.x = self.data.iloc[:, self.xcol_idx].values
-        self.y = self.data.iloc[:, self.ycol_idx].values
-        self.xmin = self.data.iloc[:, self.xcol_idx].min()
-        self.xmax = self.data.iloc[:, self.xcol_idx].max()
-        self.plot()
-        self.status_bar.showMessage(
-            'Import finished.', msg_length
-        )
-
-    def import_settings_dialog(self):
-        self.dialog_window = QDialog()
-        self.dialog_window.setWindowTitle('File Import Settings')
-        toplevel = QVBoxLayout()
-        dialog_layout = QHBoxLayout()
-        label_layout = QVBoxLayout()
-        entry_layout = QVBoxLayout()
-        button_layout = QVBoxLayout()
-        label1 = QLabel(self.dialog_window)
-        label1.setText('sep')
-        label2 = QLabel(self.dialog_window)
-        label2.setText('header')
-        label3 = QLabel(self.dialog_window)
-        label3.setText('skiprows')
-        label4 = QLabel(self.dialog_window)
-        label4.setText('dtype')
-        label5 = QLabel(self.dialog_window)
-        label5.setText('encoding')
-        for lbl in [label1, label2, label3, label4, label5]:
-            label_layout.addWidget(lbl)
-        self.sep_edit = QLineEdit(self.dialog_window)
-        self.head_edit = QLineEdit(self.dialog_window)
-        self.skipr_edit = QLineEdit(self.dialog_window)
-        self.dtype_edit = QLineEdit(self.dialog_window)
-        self.enc_edit = QLineEdit(self.dialog_window)
-        self.sep_edit.setText(self.sep)
-        self.head_edit.setText(self.header)
-        # if value is None, show text as 'None'
-        if self.skiprows is not None:
-            self.skipr_edit.setText(self.skiprows)
-        else:
-            self.skipr_edit.setText('None')
-        if self.dtype is not None:
-            self.dtype_edit.setText(self.dtype)
-        else:
-            self.dtype_edit.setText('None')
-        if self.encoding is not None:
-            self.enc_edit.setText(self.encoding)
-        else:
-            self.enc_edit.setText('None')
-
-        # add widgets to layout
-        for ewidget in [self.sep_edit, self.head_edit, self.skipr_edit,
-                        self.dtype_edit, self.enc_edit]:
-            ewidget.setAlignment(Qt.AlignCenter)
-            entry_layout.addWidget(ewidget)
-
-        button1 = QPushButton('Set', self.dialog_window)
-        button2 = QPushButton('Set', self.dialog_window)
-        button3 = QPushButton('Set', self.dialog_window)
-        button4 = QPushButton('Set', self.dialog_window)
-        button5 = QPushButton('Set', self.dialog_window)
-        for btn in [button1, button2, button3, button4, button5]:
-            btn.clicked.connect(self.set_import_settings)
-            button_layout.addWidget(btn)
-
-        reflabel = QLabel(self.dialog_window)
-        reflabel.setText(
-            "for help, refer to <a href='https://pandas.pydata.org/" +
-            "pandas-docs/stable/reference/api/" +
-            "pandas.read_csv.html'>pandas.read_csv()</a>"
-        )
-        reflabel.setOpenExternalLinks(True)
-        reflabel.setAlignment(Qt.AlignCenter)
-        for lo in [label_layout, entry_layout, button_layout]:
-            dialog_layout.addLayout(lo)
-        toplevel.addLayout(dialog_layout)
-        toplevel.addSpacing(25)
-        toplevel.addWidget(reflabel)
-        self.dialog_window.setLayout(toplevel)
-        self.dialog_window.setWindowModality(Qt.ApplicationModal)
-        self.dialog_window.exec_()
-
-    def set_import_settings(self):
-        self.sep = self.sep_edit.text()
-        self.header = self.head_edit.text()
-        # convert 'None' entries to None
-        if self.skipr_edit.text() == 'None':
-            self.skiprows = None
-        else:
-            self.skiprows = self.skipr_edit.text()
-        if self.dtype_edit.text() == 'None':
-            self.dtype = None
-        else:
-            self.dtype = self.dtype_edit.text()
-        if self.enc_edit.text() == 'None':
-            self.encoding = None
-        else:
-            self.encoding = self.enc_edit.text()
-
-    def plot(self):
-        self.tab1.figure.clear()
-        self.ax = self.tab1.figure.add_subplot(111, label=self.file_name)
-        self.ax.scatter(
-            self.x, self.y, s=100, c='None',
-            edgecolors='black', linewidth=1,
-            label='data'
-        )
-        if self.result is not None:
-            yfit = self.result.best_fit
-            self.ax.plot(self.x, yfit, c='r', linewidth=2.5)
-            cmap = cm.get_cmap('gnuplot')
-            components = self.result.eval_components()
-            for i, comp in enumerate(components):
-                self.ax.plot(
-                    self.x, components[comp],
-                    linewidth=2.5, linestyle='--',
-                    c=cmap(i/len(components)),
-                    label=comp[:comp.find('_')]
-                )
-        self.ax.set_xlabel(self.data.columns[self.xcol_idx], labelpad=15)
-        self.ax.set_ylabel(self.data.columns[self.ycol_idx], labelpad=15)
-        self.ax.set_xlim([self.xmin, self.xmax])
-        self.ax.legend(loc='upper right')
-        self.tab1.figure.subplots_adjust(bottom=0.15, left=0.06, right=0.94)
-        self.tab1.canvas.draw()
-
-    def clear_layout(self, layout):
-        if layout:
-            while layout.count():
-                item = layout.takeAt(0)
-                widget = item.widget()
-                if widget:
-                    widget.deleteLater()
-                else:
-                    self.clear_layout(item.layout())
-                layout.removeItem(item)
-
-    def clear_fit_layouts(self):
-        for layout in [
-            self.gau_layout, self.lor_layout,
-            self.voi_layout, self.lin_layout
-        ]:
-            self.clear_layout(layout)
-
-    def hard_reset(self):
-        self.clear_fit_layouts()
-        self.ngau = 0
-        self.nlor = 0
-        self.nvoi = 0
-        self.nlin = 1
-        self.init_model()
-        self.params = Parameters()
-        self.result = None
-        self.params_df = None
-        self.curves_df = None
-        self.guesses = {
-            'value': {},
-            'min': {},
-            'max': {}
-        }
-        self.usr_vals = {
-            'value': {},
-            'min': {},
-            'max': {}
-        }
-        self.init_param_widgets()
-        self.plot()
 
     def increment(self, val, add):
         if add:
@@ -1009,72 +437,227 @@ class App(QMainWindow):
         if self.nlin < 1:
             self.nlin = 1
 
+    def clear_param_viewports(self):
+        # clear any existing widgets from viewports
+        for viewport in [self.param_viewport_gau, self.param_viewport_lin,
+                         self.param_viewport_lor, self.param_viewport_voi]:
+            if viewport.get_child():
+                viewport.remove(viewport.get_child())
 
-class PandasModel(QAbstractTableModel):
-    def __init__(self, df=pd.DataFrame(), parent=None):
-        QAbstractTableModel.__init__(self, parent=parent)
-        self._df = df
+    def hard_reset(self, source=None, event=None):
+        self.clear_param_viewports()
+        self.ngau = 0
+        self.nlor = 0
+        self.nvoi = 0
+        self.nlin = 1
+        self.init_model()
+        self.params = Parameters()
+        self.result = None
+        self.params_df = None
+        self.curves_df = None
+        self.guesses = {
+            'value': {},
+            'min': {},
+            'max': {}
+        }
+        self.usr_vals = {
+            'value': {},
+            'min': {},
+            'max': {}
+        }
+        self.output_buffer.set_text('')
+        self.init_param_widgets()
+        self.column_index_set()
+        self.plot()
 
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if role != Qt.DisplayRole:
-            return QVariant()
+    def on_add_gau_clicked(self, source=None, event=None):
+        self.increment('gau', True)
+        self.init_param_widgets()
 
-        if orientation == Qt.Horizontal:
-            try:
-                return self._df.columns.tolist()[section]
-            except (IndexError, ):
-                return QVariant()
-        elif orientation == Qt.Vertical:
-            try:
-                # return self.df.index.tolist()
-                return self._df.index.tolist()[section]
-            except (IndexError, ):
-                return QVariant()
+    def on_rem_gau_clicked(self, source=None, event=None):
+        self.increment('gau', False)
+        self.init_param_widgets()
 
-    def data(self, index, role=Qt.DisplayRole):
-        if role != Qt.DisplayRole:
-            return QVariant()
+    def on_add_lor_clicked(self, source=None, event=None):
+        self.increment('lor', True)
+        self.init_param_widgets()
 
-        if not index.isValid():
-            return QVariant()
+    def on_rem_lor_clicked(self, source=None, event=None):
+        self.increment('lor', False)
+        self.init_param_widgets()
 
-        return QVariant(str(self._df.iloc[index.row(), index.column()]))
+    def on_add_voi_clicked(self, source=None, event=None):
+        self.increment('voi', True)
+        self.init_param_widgets()
 
-    def setData(self, index, value, role):
-        row = self._df.index[index.row()]
-        col = self._df.columns[index.column()]
-        if hasattr(value, 'toPyObject'):
-            # PyQt4 gets a QVariant
-            value = value.toPyObject()
-        else:
-            # PySide gets an unicode
-            dtype = self._df[col].dtype
-            if dtype != object:
-                value = None if value == '' else dtype.type(value)
-        self._df.set_value(row, col, value)
-        return True
+    def on_rem_voi_clicked(self, source=None, event=None):
+        self.increment('voi', False)
+        self.init_param_widgets()
 
-    def rowCount(self, parent=QModelIndex()):
-        return len(self._df.index)
+    def on_add_lin_clicked(self, source=None, event=None):
+        self.increment('lin', True)
+        self.init_param_widgets()
 
-    def columnCount(self, parent=QModelIndex()):
-        return len(self._df.columns)
+    def on_rem_lin_clicked(self, source=None, event=None):
+        self.increment('lin', False)
+        self.init_param_widgets()
 
-    def sort(self, column, order):
-        colname = self._df.columns.tolist()[column]
-        self.layoutAboutToBeChanged.emit()
-        self._df.sort_values(
-            colname, ascending=order == Qt.AscendingOrder, inplace=True
+    def get_data(self, source=None, event=None):
+        # self.emode_box.setCheckState(0)
+        # self.toggle_edit_mode()
+        # reset column indices
+        self.xcol_idx = 0
+        self.ycol_idx = 1
+        # open file dialog
+        self.dialog = Gtk.FileChooserDialog(
+            title='Import data file...', parent=None,
+            action=Gtk.FileChooserAction.OPEN,
         )
-        self._df.reset_index(inplace=True, drop=True)
-        self.layoutChanged.emit()
+        self.dialog.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OPEN, Gtk.ResponseType.OK
+        )
+        filter_csv = Gtk.FileFilter()
+        filter_csv.set_name('.csv files')
+        filter_csv.add_mime_type('text/csv')
+        self.dialog.add_filter(filter_csv)
 
+        filter_any = Gtk.FileFilter()
+        filter_any.set_name('All files')
+        filter_any.add_pattern("*")
+        self.dialog.add_filter(filter_any)
 
-def run():
-    qapp = QApplication(sys.argv)
-    App().show()
-    sys.exit(qapp.exec_())
+        self.dialog.set_default_size(800, 400)
+
+        response = self.dialog.run()
+        if response == Gtk.ResponseType.OK:
+            self.file_name = self.dialog.get_filename()
+            try:
+                df = tools.to_df(
+                    self.file_name, sep=self.sep, header=self.header,
+                    index_col=self.index_col, skiprows=self.skiprows,
+                    dtype=self.dtype, encoding=self.encoding
+                )
+                df.iloc[:, self.xcol_idx]
+                df.iloc[:, self.ycol_idx]
+            except Exception:
+                self.statusbar.push(
+                    self.statusbar.get_context_id('import_error'),
+                    file_import_error_msg
+                )
+                self.dialog.destroy()
+                return
+        else:
+            self.file_name = None
+            self.statusbar.push(
+                self.statusbar.get_context_id('import_canceled'),
+                'Import canceled.'
+            )
+            self.dialog.destroy()
+            return
+
+        self.dialog.destroy()
+
+        self.data = df
+        self.display_data()
+        self.result = None
+        # reset x, y, and xlim
+        self.x = self.data.iloc[:, self.xcol_idx].values
+        self.y = self.data.iloc[:, self.ycol_idx].values
+        self.xmin = self.data.iloc[:, self.xcol_idx].min()
+        self.xmax = self.data.iloc[:, self.xcol_idx].max()
+        self.plot()
+        self.statusbar.push(
+            self.statusbar.get_context_id('import_finished'),
+            'Imported {}'.format(self.file_name)
+        )
+
+    def display_data(self):
+        # remove any pre-existing columns from treeview
+        for col in self.data_treeview.get_columns():
+            self.data_treeview.remove_column(col)
+        # create model
+        # TODO: allow for other types, and infer from data
+        col_types = [float for col in self.data.columns]
+        list_store = Gtk.ListStore(*col_types)
+
+        # fill model with data
+        for row in self.data.itertuples():
+            list_store.append(
+                [row[i+1] for i, col in enumerate(self.data.columns)]
+            )
+        # set it as TreeView model
+        self.data_treeview.set_model(list_store)
+        # Create and append columns
+        for i, col in enumerate(self.data.columns):
+            renderer = Gtk.CellRendererText()
+            column = Gtk.TreeViewColumn(col, renderer, text=i)
+            self.data_treeview.append_column(column)
+        self.fname_buffer.set_text('Source:  {}'.format(self.file_name))
+        self.fname_textview.set_buffer(self.fname_buffer)
+
+    def column_index_set(self, source=None, event=None):
+        # make sure user enters index that can be converted to int
+        try:
+            idx_x = int(self.column_entry_x.get_text())
+        except ValueError:
+            self.statusbar.push(
+                self.statusbar.get_context_id('idx_type_error'),
+                idx_type_error_msg
+            )
+            self.column_entry_x.set_text('')
+            return
+        try:
+            idx_y = int(self.column_entry_y.get_text())
+        except ValueError:
+            self.statusbar.push(
+                self.statusbar.get_context_id('idx_type_error'),
+                idx_type_error_msg
+                )
+            self.column_entry_y.set_text('')
+            return
+        self.xcol_idx = idx_x
+        self.ycol_idx = idx_y
+        self.result = None
+        # make sure user enters an index that's in the data range
+        try:
+            self.x = self.data.iloc[:, self.xcol_idx]
+        except IndexError:
+            self.statusbar.push(
+                self.statusbar.get_context_id('idx_range_error'),
+                idx_range_error_msg
+            )
+            self.xline_entry.setText(None)
+            return
+        try:
+            self.y = self.data.iloc[:, self.ycol_idx]
+        except IndexError:
+            self.statusbar.push(
+                self.statusbar.get_context_id('idx_range_error'),
+                idx_range_error_msg
+            )
+            self.yline_entry.setText(None)
+            return
+        self.xmin = np.min(self.x)
+        self.xmax = np.max(self.x)
+        self.statusbar.push(
+            self.statusbar.get_context_id('new_idx_success'),
+            'Column Index (X) = ' + str(self.xcol_idx) + ', ' +
+            'Column Index (Y) = ' + str(self.ycol_idx)
+        )
+        self.plot()
+
+    def add_accelerator(self, widget, accelerator, signal="activate"):
+        '''
+        Adds keyboard shortcuts
+        '''
+        if accelerator is not None:
+            key, mod = Gtk.accelerator_parse(accelerator)
+            widget.add_accelerator(
+                signal, self.accelerators, key, mod, Gtk.AccelFlags.VISIBLE
+            )
 
 
 if __name__ == '__main__':
-    run()
+    gui = App()
+    Gtk.main()
