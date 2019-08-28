@@ -13,8 +13,9 @@ setup(
         license="GNU GPL v3",
         data_files=[
             (app_dir, ['kfit/kfit.py', 'kfit/models.py', 'kfit/tools.py',
-                       'kfit/kfit.glade', 'kfit/kfit.mplstyle']),
-            (image_dir, ['images/kfit.svg', 'images/mail-send-symbolic.svg'])
+                       'kfit/kfit.glade', 'kfit/kfit.mplstyle',
+                       'kfit/custom_backend_gtk3.py']),
+            (image_dir, ['images/kfit_v2.svg'])
         ],
         packages=find_packages(),
         install_requires=[

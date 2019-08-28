@@ -515,6 +515,7 @@ class NavigationToolbar2GTK3(NavigationToolbar2, Gtk.Toolbar):
             self._gtk_ids[text] = tbutton = Gtk.ToolButton()
             tbutton.set_label(text)
             tbutton.set_icon_widget(image)
+            tbutton.set_expand(False)
             self.insert(tbutton, -1)
             tbutton.connect('clicked', getattr(self, callback))
             tbutton.set_tooltip_text(tooltip_text)

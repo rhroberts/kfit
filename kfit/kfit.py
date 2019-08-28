@@ -7,7 +7,8 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_gtk3cairo import (
     FigureCanvasGTK3Cairo as FigureCanvas)
 from custom_backend_gtk3 import (
-    NavigationToolbar2GTK3 as NavigationToolbar)
+     NavigationToolbar2GTK3 as NavigationToolbar)
+from matplotlib.widgets import Cursor
 import pandas as pd
 import numpy as np
 from lmfit.model import Parameters
@@ -15,7 +16,7 @@ import models
 import tools
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk
+from gi.repository import Gtk, Gdk
 
 curr_dir = os.path.abspath(os.path.dirname(__file__))
 idx_type_error_msg = 'Error: Cannot convert index to integer!'
@@ -36,7 +37,7 @@ class App(Gtk.Application):
         self.glade_file = os.path.join(curr_dir, 'kfit.glade')
         self.builder.add_from_file(self.glade_file)
         # get the necessary ui objects
-        self.window = self.builder.get_object('main_window')
+        self.main_window = self.builder.get_object('main_window')
         self.graph_box = self.builder.get_object('graph_box')
         self.gau_sw = self.builder.get_object('param_scroll_gau')
         self.lor_sw = self.builder.get_object('param_scroll_lor')
@@ -56,15 +57,30 @@ class App(Gtk.Application):
         self.reset_button = self.builder.get_object('reset_button')
         self.settings_button = self.builder.get_object('settings_button')
         self.import_button = self.builder.get_object('import_button')
-        self.save_button = self.builder.get_object('save_button')
+        self.export_button = self.builder.get_object('export_button')
         self.output_textview = self.builder.get_object('output_textview')
+        self.settings_dialog = self.builder.get_object('settings_dialog')
+        self.sep_entry = self.builder.get_object('sep_entry')
+        self.header_entry = self.builder.get_object('header_entry')
+        self.skiprows_entry = self.builder.get_object('skiprows_entry')
+        self.dtype_entry = self.builder.get_object('dtype_entry')
+        self.encoding_entry = self.builder.get_object('encoding_entry')
+        self.add_gau = self.builder.get_object('add_gau')
+        self.rem_gau = self.builder.get_object('rem_gau')
+        self.add_lor = self.builder.get_object('add_lor')
+        self.rem_lor = self.builder.get_object('rem_lor')
+        self.add_voi = self.builder.get_object('add_voi')
+        self.rem_voi = self.builder.get_object('rem_voi')
+        self.add_lin = self.builder.get_object('add_lin')
+        self.rem_lin = self.builder.get_object('rem_lin')
 
-        # define class attributes
+        # define other class attributes
         self.title = 'kfit'
         self.file_name = ''
         self.xcol_idx = 0
         self.ycol_idx = 1
-        self.edit_mode = False
+        self.cmode_state = 0
+        self.clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
 
         # for graph...
         x = np.linspace(0, 10, 500)
@@ -81,13 +97,40 @@ class App(Gtk.Application):
         self.figure = Figure(figsize=(10, 4), dpi=60)
         self.canvas = FigureCanvas(self.figure)
         self.canvas.set_size_request(900, 400)
-        self.toolbar = NavigationToolbar(self.canvas, self.window)
+        self.toolbar = NavigationToolbar(self.canvas, self.main_window)
         self.graph_box.pack_start(self.toolbar, True, True, 0)
         self.graph_box.pack_start(self.canvas, True, True, 0)
+        self.cmode_toolitem = Gtk.ToolItem()
+        self.cmode_box = Gtk.Box()
+        self.cmode_box.set_margin_start(24)
+        self.cmode_box.set_margin_end(36)
+        self.cmode_radio_off = Gtk.RadioButton.new_with_label_from_widget(
+            None, label='off'
+        )
+        self.cmode_radio_off.connect('toggled', self.toggle_copy_mode)
+        self.cmode_radio_x = Gtk.RadioButton.new_from_widget(
+            self.cmode_radio_off
+        )
+        self.cmode_radio_x.set_label('x')
+        self.cmode_radio_x.connect('toggled', self.toggle_copy_mode)
+        self.cmode_radio_y = Gtk.RadioButton.new_from_widget(
+            self.cmode_radio_off
+        )
+        self.cmode_radio_y.set_label('y')
+        self.cmode_radio_y.connect('toggled', self.toggle_copy_mode)
+        self.cmode_box.pack_start(
+            Gtk.Label(label='Copy mode:'), False, False, 0
+        )
+        self.cmode_box.pack_start(self.cmode_radio_off, False, False, 0)
+        self.cmode_box.pack_start(self.cmode_radio_x, False, False, 0)
+        self.cmode_box.pack_start(self.cmode_radio_y, False, False, 0)
+        self.cmode_toolitem.add(self.cmode_box)
+        self.toolbar.insert(self.cmode_toolitem, -1)
 
         # for fit...
         self.model = None
         self.result = None
+        self.yfit = None
         self.ngau = 0
         self.nlor = 0
         self.nvoi = 0
@@ -139,6 +182,7 @@ class App(Gtk.Application):
         events = {
             'on_fit_button_clicked': self.fit,
             'on_import_button_clicked': self.get_data,
+            'on_settings_button_clicked': self.run_settings_dialog,
             'on_reset_button_clicked': self.hard_reset,
             'on_add_gau_clicked': self.on_add_gau_clicked,
             'on_rem_gau_clicked': self.on_rem_gau_clicked,
@@ -148,38 +192,53 @@ class App(Gtk.Application):
             'on_rem_voi_clicked': self.on_rem_voi_clicked,
             'on_add_lin_clicked': self.on_add_lin_clicked,
             'on_rem_lin_clicked': self.on_rem_lin_clicked,
-            'on_column_entry_changed': self.column_index_set,
+            'on_column_entry_changed': self.get_column_index,
+            'on_export_button_clicked': self.export_data,
         }
         self.builder.connect_signals(events)
 
         # add accelerators / keyboard shortcuts
         self.accelerators = Gtk.AccelGroup()
-        self.window.add_accel_group(self.accelerators)
-        self.add_accelerator(self.fit_button, "<Control>f")
-        self.add_accelerator(self.reset_button, "<Control>r")
-        self.add_accelerator(self.settings_button, "<Control>p")
-        self.add_accelerator(self.import_button, "<Control>o")
-        self.add_accelerator(self.save_button, "<Control>s")
+        self.main_window.add_accel_group(self.accelerators)
+        self.add_accelerator(self.fit_button, '<Control>f')
+        self.add_accelerator(self.reset_button, '<Control>r')
+        self.add_accelerator(self.settings_button, '<Control>p')
+        self.add_accelerator(self.import_button, '<Control>o')
+        self.add_accelerator(self.export_button, '<Control>s')
+        self.add_accelerator(self.add_gau, 'g')
+        self.add_accelerator(self.rem_gau, '<Shift>g')
+        self.add_accelerator(self.add_lor, 'l')
+        self.add_accelerator(self.rem_lor, '<Shift>l')
+        self.add_accelerator(self.add_voi, 'v')
+        self.add_accelerator(self.rem_voi, '<Shift>v')
+        self.add_accelerator(self.add_lin, 'n')
+        self.add_accelerator(self.rem_lin, '<Shift>n')
 
         # configure interface
-        self.window.connect('destroy', Gtk.main_quit)
+        self.main_window.connect('destroy', Gtk.main_quit)
 
         self.init_param_widgets()
         # show the app window
-        self.window.show_all()
+        self.main_window.show_all()
 
     def plot(self):
         self.figure.clear()
         self.axis = self.figure.add_subplot(111)
-        self.set_xy_range()
-        self.axis.scatter(
-            self.x, self.y, s=200, c='#af87ff',
-            edgecolors='black', linewidth=1,
-            label='data'
-        )
+        self.set_xlims()
+        if len(self.x) >= 1000:
+            self.axis.plot(
+                self.x, self.y, c='#af87ff',
+                linewidth=12, label='data'
+            )
+        else:
+            self.axis.scatter(
+                self.x, self.y, s=200, c='#af87ff',
+                edgecolors='black', linewidth=1,
+                label='data'
+            )
         if self.result is not None:
-            yfit = self.result.best_fit
-            self.axis.plot(self.x, yfit, c='r', linewidth=2.5)
+            self.yfit = self.result.best_fit
+            self.axis.plot(self.x, self.yfit, c='r', linewidth=2.5)
             cmap = cm.get_cmap('gnuplot')
             components = self.result.eval_components()
             for i, comp in enumerate(components):
@@ -195,10 +254,11 @@ class App(Gtk.Application):
         self.canvas.draw()
 
     def fit(self, source=None, event=None):
-        # self.emode_box.setCheckState(0)
-        # self.toggle_edit_mode()
-        self.set_xy_range(self)
-        self.set_params(self)
+        self.cmode_radio_off.set_active(True)
+        self.toggle_copy_mode(self.cmode_radio_off)
+        self.set_xrange_to_zoom()
+        self.filter_nan()
+        self.set_params()
         self.result = self.model.fit(
             data=self.y, params=self.params, x=self.x,
             method='least_squares'
@@ -391,21 +451,26 @@ class App(Gtk.Application):
                 min=vals['min'], max=vals['max']
             )
 
-    def set_xy_range(self, source=None, event=None):
-        self.x = self.data.iloc[:, self.xcol_idx]
-        self.y = self.data.iloc[:, self.ycol_idx]
-        # filter out NaN values
-        if True in np.isnan(self.x) or True in np.isnan(self.y):
-            nanbool = (~np.isnan(self.x)&~np.isnan(self.y))
-            self.x = self.x[nanbool]
-            self.y = self.y[nanbool]
-
+    def set_xlims(self, source=None, event=None):
         # self.xmin, self.xmax = self.axis.get_xlim()
         self.xmin = np.min(self.x) - 0.02*(np.max(self.x) - np.min(self.x))
         self.xmax = np.max(self.x) + 0.02*(np.max(self.x) - np.min(self.x))
+        # self.y = self.y[range_bool].values
+
+    def set_xrange_to_zoom(self):
+        self.xmin, self.xmax = self.axis.get_xlim()
         range_bool = (self.x >= self.xmin) & (self.x <= self.xmax)
-        self.x = self.x[range_bool].values
-        self.y = self.y[range_bool].values
+        self.x = self.x[range_bool]
+        self.y = self.y[range_bool]
+
+    def filter_nan(self):
+        # self.x = self.data.iloc[:, self.xcol_idx]
+        # self.y = self.data.iloc[:, self.ycol_idx]
+        # filter out NaN values
+        if True in np.isnan(self.x) or True in np.isnan(self.y):
+            nanbool = (~np.isnan(self.x) & ~np.isnan(self.y))
+            self.x = self.x[nanbool]
+            self.y = self.y[nanbool]
 
     def increment(self, val, add):
         if add:
@@ -467,8 +532,10 @@ class App(Gtk.Application):
         }
         self.output_buffer.set_text('')
         self.init_param_widgets()
-        self.column_index_set()
+        self.get_column_index()
         self.plot()
+        self.cmode_radio_off.set_active(True)
+        self.toggle_copy_mode(self.cmode_radio_off)
 
     def on_add_gau_clicked(self, source=None, event=None):
         self.increment('gau', True)
@@ -503,14 +570,16 @@ class App(Gtk.Application):
         self.init_param_widgets()
 
     def get_data(self, source=None, event=None):
-        # self.emode_box.setCheckState(0)
-        # self.toggle_edit_mode()
+        self.cmode_radio_off.set_active(True)
+        self.toggle_copy_mode(self.cmode_radio_off)
         # reset column indices
         self.xcol_idx = 0
+        self.column_entry_x.set_text(str(self.xcol_idx))
         self.ycol_idx = 1
+        self.column_entry_y.set_text(str(self.ycol_idx))
         # open file dialog
         self.dialog = Gtk.FileChooserDialog(
-            title='Import data file...', parent=None,
+            title='Import data file...', parent=self.main_window,
             action=Gtk.FileChooserAction.OPEN,
         )
         self.dialog.add_buttons(
@@ -526,7 +595,6 @@ class App(Gtk.Application):
         filter_any.set_name('All files')
         filter_any.add_pattern("*")
         self.dialog.add_filter(filter_any)
-
         self.dialog.set_default_size(800, 400)
 
         response = self.dialog.run()
@@ -564,8 +632,10 @@ class App(Gtk.Application):
         # reset x, y, and xlim
         self.x = self.data.iloc[:, self.xcol_idx].values
         self.y = self.data.iloc[:, self.ycol_idx].values
-        self.xmin = self.data.iloc[:, self.xcol_idx].min()
-        self.xmax = self.data.iloc[:, self.xcol_idx].max()
+        self.filter_nan()
+        self.set_xlims()
+        # self.xmin = self.data.iloc[:, self.xcol_idx].min()
+        # self.xmax = self.data.iloc[:, self.xcol_idx].max()
         self.plot()
         self.statusbar.push(
             self.statusbar.get_context_id('import_finished'),
@@ -596,7 +666,71 @@ class App(Gtk.Application):
         self.fname_buffer.set_text('Source:  {}'.format(self.file_name))
         self.fname_textview.set_buffer(self.fname_buffer)
 
-    def column_index_set(self, source=None, event=None):
+    def export_data(self, source=None, event=None):
+        '''
+        Export fit data and parameters to .csv
+        '''
+        self.file_export_dialog = Gtk.FileChooserDialog(
+            title='Export results file...', parent=self.main_window,
+            action=Gtk.FileChooserAction.SAVE,
+        )
+        self.file_export_dialog.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OK, Gtk.ResponseType.OK
+        )
+        filter_csv = Gtk.FileFilter()
+        filter_csv.set_name('.csv files')
+        filter_csv.add_mime_type('text/csv')
+        self.file_export_dialog.add_filter(filter_csv)
+        response = self.file_export_dialog.run()
+
+        if response == Gtk.ResponseType.OK:
+            export_filename = self.file_export_dialog.get_filename()
+            if export_filename.find('.csv') == -1:
+                export_filename += '.csv'
+            self.process_results()
+            self.curves_df.to_csv(export_filename)
+            self.params_df.to_csv(
+                '{}.params.csv'.format(
+                    export_filename[:export_filename.find('.csv')]
+                )
+            )
+            self.statusbar.push(
+                self.statusbar.get_context_id('export_results'),
+                'Exported: {}'.format(export_filename)
+            )
+        else:
+            self.statusbar.push(
+                self.statusbar.get_context_id('export_canceled'),
+                'Export canceled.'
+            )
+        self.file_export_dialog.hide()
+
+    def process_results(self):
+        if self.result is not None:
+            self.params_df = pd.DataFrame.from_dict(
+                self.result.best_values, orient='index'
+            )
+            self.params_df.index.name = 'parameter'
+            self.params_df.columns = ['value']
+            curves_dict = {
+                'data': self.y,
+                'total_fit': self.result.best_fit,
+            }
+            components = self.result.eval_components()
+            for i, comp in enumerate(components):
+                curves_dict[comp[:comp.find('_')]] = components[comp]
+            self.curves_df = pd.DataFrame.from_dict(curves_dict)
+            self.curves_df.index = self.x
+            self.curves_df.index.name = self.data.columns[self.xcol_idx]
+        else:
+            self.statusbar.push(
+                self.statusbar.get_context_id('no_fit_results'),
+                'No fit results to export!'
+            )
+            self.file_export_dialog.hide()
+
+    def get_column_index(self, source=None, event=None):
         # make sure user enters index that can be converted to int
         try:
             idx_x = int(self.column_entry_x.get_text())
@@ -627,7 +761,7 @@ class App(Gtk.Application):
                 self.statusbar.get_context_id('idx_range_error'),
                 idx_range_error_msg
             )
-            self.xline_entry.setText(None)
+            self.column_entry_x.set_text(None)
             return
         try:
             self.y = self.data.iloc[:, self.ycol_idx]
@@ -636,7 +770,7 @@ class App(Gtk.Application):
                 self.statusbar.get_context_id('idx_range_error'),
                 idx_range_error_msg
             )
-            self.yline_entry.setText(None)
+            self.column_entry_y.set_text(None)
             return
         self.xmin = np.min(self.x)
         self.xmax = np.max(self.x)
@@ -646,6 +780,95 @@ class App(Gtk.Application):
             'Column Index (Y) = ' + str(self.ycol_idx)
         )
         self.plot()
+
+    def run_settings_dialog(self, source=None, event=None):
+        '''
+        Opens the settings dialog window and controls its behavior.
+        '''
+        # set label text for help button
+        # couldn't do this in glade for some reason...
+        help_button = self.builder.get_object('help_button')
+        help_button.set_label('help')
+        # run the dialog
+        response = self.settings_dialog.run()
+
+        if response == Gtk.ResponseType.APPLY:
+            self.sep = self.sep_entry.get_text()
+            if self.header_entry.get_text() != 'infer':
+                self.header = int(self.header_entry.get_text())
+            else:
+                self.header = 'infer'
+            if self.skiprows_entry.get_text() == 'None':
+                self.skiprows = None
+            else:
+                self.skiprows = int(self.skiprows_entry.get_text())
+            if self.dtype_entry.get_text() == 'None':
+                self.dtype = None
+            else:
+                self.dtype = self.dtype_entry.get_text()
+            if self.encoding_entry.get_text() == 'None':
+                self.encoding = None
+            else:
+                self.encoding = self.encoding_entry.get_text()
+        else:
+            self.settings_dialog.hide()
+
+        self.settings_dialog.hide()
+
+    def toggle_copy_mode(self, button):
+        # first toggle off the zoom or pan button
+        # so they don't interfere with copy_mode cursor style
+        if self.toolbar._active == 'ZOOM':
+            self.toolbar.zoom()
+        if self.toolbar._active == 'PAN':
+            self.toolbar.pan()
+        state_messages = {
+            0: 'Copy mode off',
+            1: 'Copy mode on | x-value',
+            2: 'Copy mode on | y-value',
+        }
+        if button.get_active():
+            if button.get_label() == 'x':
+                self.cmode_state = 1
+                self.mpl_cursor = Cursor(
+                    self.axis, lw=1, c='red', linestyle='--'
+                )
+                self.cid = self.canvas.mpl_connect(
+                    'button_press_event', self.get_coord_click
+                )
+            elif button.get_label() == 'y':
+                self.cmode_state = 2
+                self.mpl_cursor = Cursor(
+                    self.axis, lw=1, c='red', linestyle='--'
+                )
+                self.cid = self.canvas.mpl_connect(
+                    'button_press_event', self.get_coord_click
+                )
+            else:
+                # copy mode off
+                self.cmode_state = 0
+                self.mpl_cursor = None
+                self.canvas.mpl_disconnect(self.cid)
+        
+            self.statusbar.push(
+                self.statusbar.get_context_id('cmode_state'),
+                state_messages[self.cmode_state]
+            )
+
+    def get_coord_click(self, event):
+        x_copy, y_copy = str(round(event.xdata, 3)), str(round(event.ydata, 3))
+        if self.cmode_state == 1:
+            self.clipboard.set_text(x_copy, -1)
+            self.statusbar.push(
+                    self.statusbar.get_context_id('copied_x'),
+                    'Copied X=' + str(x_copy) + ' to clipboard!'
+            )
+        if self.cmode_state == 2:
+            self.clipboard.set_text(y_copy, -1)
+            self.statusbar.push(
+                    self.statusbar.get_context_id('copied_y'),
+                    'Copied Y=' + str(y_copy) + ' to clipboard!'
+            )
 
     def add_accelerator(self, widget, accelerator, signal="activate"):
         '''
