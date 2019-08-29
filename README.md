@@ -30,7 +30,7 @@ sudo snap install kfit
 
 Instructions for installing `snapd` for each compatible linux distro:
 
-[https://snapcraft.io/docs/installing-snapd](https://snapcraft.io/docs/installing-snapd)
+- [https://snapcraft.io/docs/installing-snapd](https://snapcraft.io/docs/installing-snapd)
 
 Snap has been tested on:
 
