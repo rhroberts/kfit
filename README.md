@@ -81,4 +81,4 @@ Distro packages
 
 ## Contributing
 
-- Check out [NOTES.md](./NOTES.md) for development notes and outstanding issues
+- Check out [NOTES.md](./NOTES.md) for development notes and TODOs
