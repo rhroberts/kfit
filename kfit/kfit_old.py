@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys
 import pyperclip
 import pandas as pd
@@ -5,7 +7,9 @@ import numpy as np
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from kfit import models, tools
+# from kfit import models, tools
+import models
+import tools
 from lmfit.model import Parameters
 from PyQt5.QtGui import QIcon, QKeySequence
 from PyQt5.QtCore import (Qt, QAbstractTableModel, QModelIndex,

@@ -1,10 +1,7 @@
 # Built-in models for peak fitting from lmfit
 
 import numpy as np
-from lmfit.models import LorentzianModel, \
-                         GaussianModel, \
-                         PseudoVoigtModel, \
-                         LinearModel
+from lmfit.models import LorentzianModel, GaussianModel, PseudoVoigtModel, LinearModel
 
 
 def gauss(x, amp, center, sigma):
