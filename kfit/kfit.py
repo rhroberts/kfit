@@ -267,9 +267,6 @@ class App(Gtk.Application):
         self.plot()
         # overwrite widgets to clear input (not ideal method..)
         self.init_param_widgets()
-        # update widgets with new placeholder text
-        # NOTE: I think this is redundant?
-        # self.update_param_widgets()
 
     def init_model(self):
         # note: increment() ensures nlin >= 1
@@ -283,8 +280,7 @@ class App(Gtk.Application):
         self.statusbar.push(
                 self.statusbar.get_context_id('info'),
                 "Model updated: " +
-                str([self.ngau, self.nlor, self.nvoi, self.nlin]),
-                # msg_length
+                str([self.ngau, self.nlor, self.nvoi, self.nlin])
         )
 
     def init_param_widgets(self):
@@ -348,7 +344,7 @@ class App(Gtk.Application):
                 self.vbox_lin.pack_start(vbox_sub, False, False, pad)
                 self.vbox_lin.set_halign(Gtk.Align.CENTER)
 
-        # Resize all of the LineEntry widgets
+        # Resize all of the entry widgets
         for key in self.usr_entry_widgets:
             for param, widget in self.usr_entry_widgets[key].items():
                 widget.set_width_chars(7)
@@ -452,10 +448,8 @@ class App(Gtk.Application):
             )
 
     def set_xlims(self, source=None, event=None):
-        # self.xmin, self.xmax = self.axis.get_xlim()
         self.xmin = np.min(self.x) - 0.02*(np.max(self.x) - np.min(self.x))
         self.xmax = np.max(self.x) + 0.02*(np.max(self.x) - np.min(self.x))
-        # self.y = self.y[range_bool].values
 
     def set_xrange_to_zoom(self):
         self.xmin, self.xmax = self.axis.get_xlim()
@@ -464,9 +458,6 @@ class App(Gtk.Application):
         self.y = self.y[range_bool]
 
     def filter_nan(self):
-        # self.x = self.data.iloc[:, self.xcol_idx]
-        # self.y = self.data.iloc[:, self.ycol_idx]
-        # filter out NaN values
         if True in np.isnan(self.x) or True in np.isnan(self.y):
             nanbool = (~np.isnan(self.x) & ~np.isnan(self.y))
             self.x = self.x[nanbool]
@@ -634,8 +625,6 @@ class App(Gtk.Application):
         self.y = self.data.iloc[:, self.ycol_idx].values
         self.filter_nan()
         self.set_xlims()
-        # self.xmin = self.data.iloc[:, self.xcol_idx].min()
-        # self.xmax = self.data.iloc[:, self.xcol_idx].max()
         self.plot()
         self.statusbar.push(
             self.statusbar.get_context_id('import_finished'),
