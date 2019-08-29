@@ -2,7 +2,6 @@
 <a href="./images/kfit_v2.svg">
     <img src="./images/kfit_v2.svg" width="20%" />
 </a>
-<br><br>
 <h1>kfit - Simple, graphical spectral fitting</h1>
 </div>
 <div>
@@ -14,7 +13,7 @@ custom models.
 <br><br>
 </div>
 <div align="center">
-<img src="./assets/screenshot.png" width="80%" />
+<img src="./assets/screenshot.png" />
 </div>
 
 ## Installation
