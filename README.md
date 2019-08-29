@@ -34,15 +34,17 @@ Instructions for installing `snapd` for each compatible linux distro:
 
 Snap has been tested on:
 
-- Ubuntu 18.04 and 19.04 (:heavy_check_mark:)
+- Ubuntu 18.04 and 19.04 :heavy_check_mark:
 
-- Debian 10 (:heavy_check_mark:)
+- Debian 10 :heavy_check_mark:
 
-- Red Hat Enterprise Linux 7 (:heavy_check_mark:)
+- Red Hat Enterprise Linux 7 :heavy_check_mark:
 
-- Fedora 30 (:x:)
+- Fedora 30 :x:
 
-- OpenSUSE Tumbleweed (:x:)
+- OpenSUSE Tumbleweed :x:
+
+:x: See [https://github.com/rhroberts/kfit/issues/2](https://github.com/rhroberts/kfit/issues/2)
 
 ### From source
 
