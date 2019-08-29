@@ -849,7 +849,7 @@ class App(Gtk.Application):
                 self.cmode_state = 0
                 self.mpl_cursor = None
                 self.canvas.mpl_disconnect(self.cid)
-        
+
             self.statusbar.push(
                 self.statusbar.get_context_id('cmode_state'),
                 state_messages[self.cmode_state]

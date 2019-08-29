@@ -13,7 +13,7 @@ setup(
         author="Rusty Roberts",
         license="GNU GPL v3",
         data_files=[
-            (prime, ['kfit.desktop']),
+            (prime, ['kfit.desktop', 'images/kfit_v2.svg']),
             (app_dir, ['kfit/kfit.py', 'kfit/models.py', 'kfit/tools.py',
                        'kfit/kfit.glade', 'kfit/kfit.mplstyle',
                        'kfit/custom_backend_gtk3.py']),

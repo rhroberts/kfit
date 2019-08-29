@@ -29,29 +29,18 @@ plugs:
     target: $SNAP/share/sounds
     default-provider: gtk-common-themes:sounds-themes
 
-slots:
-  # for GtkApplication registration
-  kfit:
-    interface: dbus
-    bus: session
-    name: org.kfit.kfit
-
-environment:
-  XDG_DATA_DIRS: $SNAP/share:$XDG_DATA_DIRS
-
 apps:
   kfit:
     command: desktop-launch $SNAP/share/kfit/kfit.py
     desktop: kfit.desktop
     plugs:
       - desktop
+      - desktop-legacy
+      - home
       - unity7
       - wayland
       - x11
-      - home
       - gsettings
-      - dbus
-        #    desktop: usr/share/applications/kfit.desktop
 
 parts:
   kfit:

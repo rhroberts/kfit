@@ -2,5 +2,6 @@
 Name=kfit
 Exec=kfit
 Type=Application
+Icon=kfit_v2.svg
 Terminal=false
 Categories=Research;Education;Utility;
