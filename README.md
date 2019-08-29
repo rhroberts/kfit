@@ -1,4 +1,4 @@
-[![snapcraft](https://snapcraft.io/kfit/badge.svg)](https://snapcraft.io/kfit)
+[![kfit](https://snapcraft.io/kfit/badge.svg)](https://snapcraft.io/kfit)
 
 <div align="center">
 <a href="./images/kfit_v2.svg">
@@ -21,6 +21,8 @@ custom models.
 ## Installation
 
 ### The easy way
+
+[![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/kfit)
 
 `sudo snap install kfit`
 
