@@ -2,17 +2,16 @@
 <a href="./images/kfit_v2.svg">
     <img src="./images/kfit_v2.svg" width="20%" />
 </a>
-<br>
-</div>
-
+<br><br>
 # kfit - Simple, graphical spectral fitting
+</div>
 <div>
 kfit is a tool for quick and easy spectral fitting in science and education.
 It works as a standalone data fitting program for simple tasks, or as an
 exploratory tool in more complex projects. kfit provides a few commonly 
 used peak shapes in engineering and physics, and will eventually support 
 custom models.
-<br>
+<br><br>
 </div>
 <div align="center">
 <img src="./assets/screenshot.png" width="80%" />
