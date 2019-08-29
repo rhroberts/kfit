@@ -40,11 +40,11 @@ Snap has been tested on:
 
 - Red Hat Enterprise Linux 7 :heavy_check_mark:
 
-- Fedora 30 :x:
+- Fedora 30 :x:*
 
-- OpenSUSE Tumbleweed :x:
+- OpenSUSE Tumbleweed :x:*
 
-:x: See [https://github.com/rhroberts/kfit/issues/2](https://github.com/rhroberts/kfit/issues/2)
+*See [https://github.com/rhroberts/kfit/issues/2](https://github.com/rhroberts/kfit/issues/2)
 
 ### From source
 
