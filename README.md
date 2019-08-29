@@ -1,6 +1,8 @@
+[![snapcraft](https://snapcraft.io/kfit/badge.svg)](https://snapcraft.io/kfit)
+
 <div align="center">
 <a href="./images/kfit_v2.svg">
-    <img src="./images/kfit_v2.svg" width="20%" />
+    <img src="./images/kfit_v2.svg" width="10%" />
 </a>
 <h1>kfit - Simple, graphical spectral fitting</h1>
 </div>
