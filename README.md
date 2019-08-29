@@ -1,7 +1,5 @@
 # kfit - A simple spectral fitting tool in Python
 
-<iframe src="https://snapcraft.io/kfit/embedded?button=black&channels=true&summary=true&screenshot=true" frameborder="0" width="100%" height="820px" style="border: 1px solid #CCC; border-radius: 2px;"></iframe>
-
 ## Installation
 
 ### The easy way
