@@ -3,7 +3,7 @@
     <img src="./images/kfit_v2.svg" width="20%" />
 </a>
 <br><br>
-# kfit - Simple, graphical spectral fitting
+<h1>kfit - Simple, graphical spectral fitting</h1>
 </div>
 <div>
 kfit is a tool for quick and easy spectral fitting in science and education.
