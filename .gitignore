@@ -15,4 +15,6 @@ __pycache__/
 .superseded/
 scripts/test_env/
 NOTES.html
+README.html
+install_tests.txt
 *.glade~

@@ -20,30 +20,63 @@ custom models.
 
 ## Installation
 
-### The easy way
+### From snapcraft
 
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/kfit)
 
-`sudo snap install kfit`
+```bash
+sudo snap install kfit
+```
+
+Instructions for installing `snapd` for each compatible linux distro:
+
+[https://snapcraft.io/docs/installing-snapd](https://snapcraft.io/docs/installing-snapd)
+
+Snap has been tested on:
+
+- Ubuntu 18.04 and 19.04 (:heavy_check_mark:)
+
+- Debian 10 (:heavy_check_mark:)
+
+- Red Hat Enterprise Linux 7 (:heavy_check_mark:)
+
+- Fedora 30 (:x:)
+
+- OpenSUSE Tumbleweed (:x:)
 
 ### From source
 
+Install:
+
+```bash
+sudo apt install python3 python3-pip python3-gi python3-gi-cairo
+git clone git@github.com:rhroberts/kfit.git
+cd kfit
+pip3 install ./
+```
+
+Run:
+
+```bash
+./kfit/kfit.py
+```
+
 #### Dependencies
 
-From pip/conda...
+Python packages
 
 - lmfit
 - matplotlib
 - pandas
 - numpy
 
-From apt or similar...
+Distro packages
 
+- python3
+- python3-pip
 - python3-gi
 - python3-gi-cairo
-- gir1.2-gtk-3.0
 
 ## Contributing
 
 - Check out [NOTES.md](./NOTES.md) for development notes and outstanding issues
-
