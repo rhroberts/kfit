@@ -1,27 +1,24 @@
-# kfit - Simple, graphical spectral fitting with Python and Gtk 
-
 <div align="center">
 <a href="./images/kfit_v2.svg">
     <img src="./images/kfit_v2.svg" width="20%" />
 </a>
-<br><br>
+<br>
 </div>
+
+# kfit - Simple, graphical spectral fitting
 <div>
 kfit is a tool for quick and easy spectral fitting in science and education.
 It works as a standalone data fitting program for simple tasks, or as an
 exploratory tool in more complex projects. kfit provides a few commonly 
 used peak shapes in engineering and physics, and will eventually support 
 custom models.
+<br>
 </div>
 <div align="center">
 <img src="./assets/screenshot.png" width="80%" />
 </div>
 
 ## Installation
-
-<div>
-<iframe src="https://snapcraft.io/kfit/embedded?button=black" frameborder="0" width="100%" height="310px" style="border: 1px solid #CCC; border-radius: 2px;"></iframe>
-</div>
 
 ### The easy way
 
