@@ -2,34 +2,25 @@
 
 ## Notes
 
-- Will need to implement QThreads for both fitting and import processes so the GUI doesn't freeze up
-    - Ex:
-        - https://www.learnpyqt.com/courses/concurrent-execution/multithreading-pyqt-applications-qthreadpool/
-    - Will work on this once the program is decently usable aside from the freezing on long fits
-- Regardless of whether I implement threading, it is probably best I do a better job of isolating the GUI stuff from the actual fitting process
+- Will need to implement threading for both fitting and import processes so the GUI doesn't freeze up
 
 ## TO-DOs
 
 ### Packaging
 
-- [ ] Start by publishing with snapcraft
-    - Once that's done consider options for other platforms
-
 ### High Priority
-
-* I think finishing the below high-priority tasks will get the app to a place where it's decently user friendly
 
 - [ ] Need much better error handling
 
 ### Medium Priority
 
-- Some sort of progress bar
+- [ ] Add some sort of progress bar
     - this will require threading
-- Still need to figure of the issue of having to initialize model with something 
+- [ ] Still need to figure of the issue of having to initialize model with something 
     - Don't want to always have to use a line in the model
-- Removing user entry from text box doesn't reset value to guess
+- [ ] Removing user entry from text box doesn't reset value to guess
     - is this resolved?
-- Need to show warning when user tries to enter value above/below the parameter bounds
+- [ ] Need to show warning when user tries to enter value above/below the parameter bounds
 
 ### Low Priority
 
@@ -38,12 +29,11 @@
     - this will just be an interface thing, fits will still use amp/height
         - will need to convert whenever we show the user a param (e.g. setPlaceholderText)
     - I'm leaving this as is for now
-- Would be useful to have the app "learn" from previous fits
-    - this would just involve keeping the results, for example, for gau1 and using those in the next fit, even if other models are added
-- Think more carefully about when/why things *actually* need to be class attributes of App()
 
 ### Done
 
+- [x] Start by publishing with snapcraft
+    - Once that's done consider options for other platforms
 - [x] Add button(s) to save fit details and results
 - [x] Need a more robust file import import dialog
     - still needs work, but will do for now
@@ -101,17 +91,12 @@
     - dealing with val, min, and max
     - solution: nested dict
 - Make the param_layout have four columns -- one for each peak types
-- Am I using pyqtSlot() correctly?
-    - https://stackoverflow.com/questions/39210500/how-do-i-connect-a-pyqt5-slot-to-a-signal-function-in-a-class
-    - seems like I can probably delete them all...
-        - yup
 - Add lineEntry widgets for min() and max() parmeters as well... 
     - Round off the placeholder text in entry widgets
         - done, but should really do something more robust in cases of values on the order of $10^{-6}$ or smaller
             - eh, it's just the placeholder, not the value being used
 - Fix the app logic re:
     - When are fit(), update_usr_params(), and guess_params() called
-        - Right now it's a clusterfuck and user params get overwritten by guesses when fitting
         - Also, as it stands guess_params doesn't work without a call to fit, but this results in really slow fits w/o user having opportunity to specify params first
 
 - How will we get user entry from the param widgets if they are dynamic?
