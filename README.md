@@ -7,16 +7,59 @@
 <h1>kfit - Simple, graphical spectral fitting</h1>
 </div>
 <div>
-kfit is a tool for quick and easy spectral fitting in science and education.
-It works as a standalone data fitting program for simple tasks, or as an
-exploratory tool in more complex projects. kfit provides a few commonly 
-used peak shapes in engineering and physics, and will eventually support 
-custom models.
+kfit is a tool for quick and easy spectral fitting in science and education. It works as a standalone data fitting program for simple tasks, or as an exploratory tool in more complex projects. kfit provides a few commonly used peak shapes in engineering and physics, and will eventually support custom, user-defined models.
 <br><br>
 </div>
 <div align="center">
 <img src="./assets/screenshot.png" />
 </div>
+
+## Usage
+
+### Keyboard shortcuts
+
+| Action                                | Shortcut       |
+| ------------------------------------- |:--------------:|
+| Fit                                   | `<Control>f`   |
+| Reset                                 | `<Control>r`   |
+| Import File                           | `<Control>o`   |
+| Export Results                        | `<Control>s`   |
+| Open Settings                         | `<Control>p`   |
+| Add/Remove Gaussian To/From Model     | `g / <Shift>g` |
+| Add/Remove Lorentzian To/From Model   | `l / <Shift>l` |
+| Add/Remove Pseudo-Voigt To/From Model | `v / <Shift>v` |
+| Add/Remove Line To/From Model         | `n / <Shift>n` |
+
+### Importing Data
+
+CSV files are imported via the [pandas.read_csv()](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html) method, and a few select parameters for this method can be accessed from the settings window in kfit. Generally, a comma-separated plaintext file with or without a header row and with UTF-8 encoding can be import with no issues. A more robust, interactive file import dialog will be implemented in a future release.
+
+### Exporting Results
+
+The export method will save two CSV files to the local filesystem:
+
+1. ***.csv**
+   
+   The original data, total fit, and component curves in the fit.
+   
+   | x   | data | total_fit | [model_component_1] | ... | [model_component_N] |
+   | --- |:----:|:---------:|:-------------------:|:---:|:-------------------:|
+   | ... | ...  | ...       | ...                 | ... | ...                 |
+
+2. ***.params.csv**
+   
+   The parameters for each model component, e.g. *gau1_amplitude*, *lin1_slope*, etc.
+   
+   | parameter                         | value |
+   | --------------------------------- | ----- |
+   | [model_component_1]_[parameter_1] |       |
+   | [model_component_1]_[parameter_2] |       |
+   | ...                               |       |
+   | [model_component_N]_[parameter]_N |       |
+
+### Models
+
+At the moment, kfit uses four stock models from the [lmfit](https://lmfit.github.io/lmfit-py/) package: three peak-like models (Gaussian, Lorentzian, Pseudo-Voigt) and a Linear model. These base models can be added together to create a composite model for the data. In the future, support for more `lmfit` models and user-defined custom models will be added.
 
 ## Installation (Linux)
 
