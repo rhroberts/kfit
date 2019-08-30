@@ -87,20 +87,21 @@ I've tested the following with Windows 10 and Anaconda's python3 distribution. A
 
 1. Create a conda env
    
-   . `conda create -n kfit python=3.7`
+   - `conda create -n kfit python=3.7`
    
-   . `conda activate kfit`
+   - `conda activate kfit`
 
 2. Install dependencies
    
    - `conda install numpy matplotlib pandas pycairo`
-   . `conda install -c conda-forge pygobject`
    
-   . `pip install lmfit`
+   - `conda install -c conda-forge pygobject`
+   
+   - `pip install lmfit`
 
 3. Download and unzip kfit source code
    
-   . https://github.com/rhroberts/kfit/archive/master.zip
+   - https://github.com/rhroberts/kfit/archive/master.zip
 
 4. Navigate to the project root
 
