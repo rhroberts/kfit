@@ -83,49 +83,7 @@ Distro packages
 
 *STILL WORKING ON THIS*
 
-I've tested the following with Windows 10 and Anaconda's python3 distribution. After installing conda and opening up a conda prompt:
-
-1. Create a conda env
-   
-   - `conda create -n kfit python=3.7`
-   
-   - `conda activate kfit`
-
-2. Install dependencies
-   
-   - `conda install numpy matplotlib pandas pycairo`
-   
-   - `conda install -c conda-forge pygobject`
-   
-   - `pip install lmfit`
-
-3. Download and unzip kfit source code
-   
-   - https://github.com/rhroberts/kfit/archive/master.zip
-
-4. Navigate to the project root
-
-5. Run `python kfit/kfit.py`
-
-*Currently, this produces the following error:*
-
-> Traceback (most recent call last):
->   File "C:\Users\rhrob\Anaconda3\envs\kfit\lib\site-packages\matplotlib\backends\backend_gtk3.py", line 25, in <module>
->     gi.require_version("Gtk", "3.0")
->   File "C:\Users\rhrob\Anaconda3\envs\kfit\lib\site-packages\gi\__init__.py", line 129, in require_version
->     raise ValueError('Namespace %s not available' % namespace)
-> ValueError: Namespace Gtk not available
-> 
-> The above exception was the direct cause of the following exception:
-> 
-> Traceback (most recent call last):
->   File "kfit.py", line 7, in <module>
->     from matplotlib.backends.backend_gtk3cairo import (
->   File "C:\Users\rhrob\Anaconda3\envs\kfit\lib\site-packages\matplotlib\backends\backend_gtk3cairo.py", line 1, in <module>
->     from . import backend_cairo, backend_gtk3
->   File "C:\Users\rhrob\Anaconda3\envs\kfit\lib\site-packages\matplotlib\backends\backend_gtk3.py", line 29, in <module>
->     raise ImportError from e
-> ImportError
+[https://github.com/rhroberts/kfit/issues/3](https://github.com/rhroberts/kfit/issues/3)
 
 ## Contributing
 
