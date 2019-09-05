@@ -250,6 +250,7 @@ class App(Gtk.Application):
                 )
         self.axis.set_xlabel(self.data.columns[self.xcol_idx])
         self.axis.set_ylabel(self.data.columns[self.ycol_idx])
+        self.axis.legend(loc='best')
         self.axis.set_xlim([self.xmin, self.xmax])
         self.canvas.draw()
 
