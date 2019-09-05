@@ -189,6 +189,22 @@
                 <property name="top_attach">0</property>
               </packing>
             </child>
+            <child>
+              <object class="GtkLinkButton" id="help_button">
+                <property name="label" translatable="yes">button</property>
+                <property name="name">help_button</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="halign">start</property>
+                <property name="relief">none</property>
+                <property name="uri">https://github.com/rhroberts/kfit/blob/master/README.md?#Usage</property>
+              </object>
+              <packing>
+                <property name="left_attach">6</property>
+                <property name="top_attach">0</property>
+              </packing>
+            </child>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -1056,9 +1072,9 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLinkButton" id="help_button">
+              <object class="GtkLinkButton" id="import_help_button">
                 <property name="label" translatable="yes">button</property>
-                <property name="name">help_button</property>
+                <property name="name">import_help_button</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>

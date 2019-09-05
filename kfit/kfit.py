@@ -58,6 +58,7 @@ class App(Gtk.Application):
         self.settings_button = self.builder.get_object('settings_button')
         self.import_button = self.builder.get_object('import_button')
         self.export_button = self.builder.get_object('export_button')
+        self.help_button = self.builder.get_object('help_button')
         self.output_textview = self.builder.get_object('output_textview')
         self.settings_dialog = self.builder.get_object('settings_dialog')
         self.sep_entry = self.builder.get_object('sep_entry')
@@ -81,6 +82,13 @@ class App(Gtk.Application):
         self.ycol_idx = 1
         self.cmode_state = 0
         self.clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+
+        # configure help button
+        self.help_button.set_label(' Help')
+        help_image = Gtk.Image()
+        help_image.set_from_file('../images/dialog-question-symbolic.svg')
+        self.help_button.set_image(help_image)
+        self.help_button.set_always_show_image(True)
 
         # for graph...
         x = np.linspace(0, 10, 500)
@@ -777,8 +785,8 @@ class App(Gtk.Application):
         '''
         # set label text for help button
         # couldn't do this in glade for some reason...
-        help_button = self.builder.get_object('help_button')
-        help_button.set_label('help')
+        import_help_button = self.builder.get_object('import_help_button')
+        import_help_button.set_label('help')
         # run the dialog
         response = self.settings_dialog.run()
 
