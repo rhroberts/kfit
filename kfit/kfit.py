@@ -86,7 +86,9 @@ class App(Gtk.Application):
         # configure help button
         self.help_button.set_label(' Help')
         help_image = Gtk.Image()
-        help_image.set_from_file('../images/dialog-question-symbolic.svg')
+        help_image.set_from_file(
+            os.path.join(curr_dir, '../images/dialog-question-symbolic.svg')
+        )
         self.help_button.set_image(help_image)
         self.help_button.set_always_show_image(True)
 

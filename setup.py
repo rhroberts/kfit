@@ -24,7 +24,8 @@ setup(
                          'images/drive-optical-symbolic.svg',
                          'images/view-refresh-symbolic.svg',
                          'images/list-add-symbolic.svg',
-                         'images/list-remove-symbolic.svg'])
+                         'images/list-remove-symbolic.svg',
+                         'images/dialog-question-symbolic.svg'])
         ],
         packages=find_packages(),
         install_requires=[

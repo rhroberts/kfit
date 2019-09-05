@@ -34,6 +34,12 @@ kfit is a tool for quick and easy spectral fitting in science and education. It 
 
 CSV files are imported via the [pandas.read_csv()](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html) method, and a few select parameters for this method can be accessed from the settings window in kfit. Generally, a comma-separated plaintext file with or without a header row and with UTF-8 encoding can be import with no issues. A more robust, interactive file import dialog will be implemented in a future release.
 
+### Navigating the Graph Tab
+
+The graph tab uses [matplotlib backends](https://github.com/matplotlib/matplotlib/tree/master/lib/matplotlib/backends) for the figure and navigation toolbar. This means you can pan, zoom, adjust settings, and export the plot just as you would with a typical `matplotlib` plot. If you are not familiar with `matplotlib`, [this documentation page](https://matplotlib.org/users/navigation_toolbar.html?highlight=navigation) describes how to use the interactive toolbar.
+
+Note that zooming in/out on the graph also changes the *range* of the fitted data in kfit. This can be a useful way to crop out regions of data you are not interested in fitting. Exported results will adhere to this zoomed range as well. To return to viewing and fitting the full dataset, use the `<Control>r` shortcut to reset the graph.
+
 ### Exporting Results
 
 The export method will save two CSV files to the local filesystem:
