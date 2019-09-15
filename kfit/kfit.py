@@ -66,6 +66,7 @@ class App(Gtk.Application):
         self.skiprows_entry = self.builder.get_object('skiprows_entry')
         self.dtype_entry = self.builder.get_object('dtype_entry')
         self.encoding_entry = self.builder.get_object('encoding_entry')
+        self.fit_method_entry = self.builder.get_object('fit_method_entry')
         self.add_gau = self.builder.get_object('add_gau')
         self.rem_gau = self.builder.get_object('rem_gau')
         self.add_lor = self.builder.get_object('add_lor')
@@ -272,7 +273,7 @@ class App(Gtk.Application):
         self.set_params()
         self.result = self.model.fit(
             data=self.y, params=self.params, x=self.x,
-            method='least_squares'
+            method=self.fit_method
         )
         self.output_buffer.set_text(self.result.fit_report())
         self.plot()
@@ -789,6 +790,8 @@ class App(Gtk.Application):
         # couldn't do this in glade for some reason...
         import_help_button = self.builder.get_object('import_help_button')
         import_help_button.set_label('help')
+        fit_help_button = self.builder.get_object('fit_help_button')
+        fit_help_button.set_label('help')
         # run the dialog
         response = self.settings_dialog.run()
 
@@ -810,6 +813,10 @@ class App(Gtk.Application):
                 self.encoding = None
             else:
                 self.encoding = self.encoding_entry.get_text()
+            if self.fit_method_entry.get_text() != 'least_squares':
+                self.fit_method = self.fit_method_entry.get_text()
+            else:
+                self.fit_method = 'least_squares'
         else:
             self.settings_dialog.hide()
 
