@@ -8,7 +8,7 @@ image_dir = 'share/images/'
 
 setup(
         name='kfit',
-        version='0.1.1',
+        version='0.1.3',
         description='Simple, graphical spectral fitting in Python.',
         author="Rusty Roberts",
         license="GNU GPL v3",
@@ -32,6 +32,6 @@ setup(
             'numpy',
             'matplotlib',
             'pandas',
-            'lmfit'
+            'lmfit',
         ]
 )

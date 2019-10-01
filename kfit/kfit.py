@@ -139,6 +139,7 @@ class App(Gtk.Application):
         self.toolbar.insert(self.cmode_toolitem, -1)
 
         # for fit...
+        self.fit_method = 'least_squares'
         self.model = None
         self.result = None
         self.yfit = None
