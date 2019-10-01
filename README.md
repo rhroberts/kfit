@@ -100,7 +100,7 @@ Snap has been tested on:
 Install:
 
 ```bash
-sudo apt install python3 python3-pip python3-gi python3-gi-cairo
+sudo apt install python3-dev python3-pip python3-gi python3-gi-cairo libgirepository1.0-dev gcc libcairo2-dev pkg-config gir1.2-gtk-3.0
 git clone git@github.com:rhroberts/kfit.git
 cd kfit
 pip3 install ./
@@ -120,13 +120,20 @@ Python packages
 - matplotlib
 - pandas
 - numpy
+- pycairo
+- pygobject
 
 Distro packages
 
-- python3
+- gcc 
+- pkg-config
+- python3-dev
 - python3-pip
 - python3-gi
 - python3-gi-cairo
+- libgirepository1.0-dev
+- libcairo2-dev 
+- gir1.2-gtk-3.0
 
 ## Installation (Windows)
 
