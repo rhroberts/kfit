@@ -33,5 +33,7 @@ setup(
             'matplotlib',
             'pandas',
             'lmfit',
+            'pycairo',
+            'pygobject'
         ]
 )

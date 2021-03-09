@@ -824,12 +824,6 @@ class App(Gtk.Application):
         self.settings_dialog.hide()
 
     def toggle_copy_mode(self, button):
-        # first toggle off the zoom or pan button
-        # so they don't interfere with copy_mode cursor style
-        if self.toolbar._active == 'ZOOM':
-            self.toolbar.zoom()
-        if self.toolbar._active == 'PAN':
-            self.toolbar.pan()
         state_messages = {
             0: 'Copy mode off',
             1: 'Copy mode on | x-value',

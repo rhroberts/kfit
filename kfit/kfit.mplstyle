@@ -34,7 +34,7 @@ ytick.major.size: 0
 ytick.minor.size: 0
 
 font.size: 18
-font.family: Ubuntu
+font.family: DejaVu Sans
 font.weight: light
 # font.sans-serif: Verdana
 
